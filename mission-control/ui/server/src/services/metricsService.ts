@@ -15,8 +15,8 @@ import type {
 } from '../types/metrics.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-// server/src/services → server/src → server → ui → mission-control
-const METRICS_DIR = resolve(__dirname, '../../../../../metrics')
+// server/src/services → server/src → server → ui → mission-control → metrics
+const METRICS_DIR = resolve(__dirname, '../../../../metrics')
 const DB_PATH = resolve(METRICS_DIR, 'workspace-metrics.db')
 
 function ensureMetricsDir(): void {
