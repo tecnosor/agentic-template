@@ -5,6 +5,8 @@ import tasksRouter from './routes/tasks.js'
 import mutationsRouter from './routes/mutations.js'
 import githubRouter from './routes/github.js'
 import metricsRouter from './routes/metrics.js'
+import { startKanbanWatcher } from './services/kanbanWatcher.js'
+import { startGitPoller } from './services/gitPoller.js'
 
 const app = express()
 
@@ -29,4 +31,8 @@ app.use((_req, res) => {
 
 app.listen(PORT, () => {
   console.info(`Kanban API server running at http://localhost:${PORT}`)
+
+  // Start background collectors
+  startKanbanWatcher()
+  startGitPoller().catch(() => {/* non-blocking */})
 })

@@ -14,6 +14,7 @@ import {
   getSummary,
   exportAll,
 } from '../services/metricsService.js'
+import { addClient, removeClient, clientCount } from '../services/sseService.js'
 import type { MetricEvent, Session } from '../types/metrics.js'
 
 const router = Router()
@@ -195,6 +196,21 @@ router.get('/metrics/export', (_req, res) => {
     const msg = err instanceof Error ? err.message : String(err)
     res.status(500).json({ error: msg })
   }
+})
+
+// GET /api/metrics/stream — Server-Sent Events for live dashboard updates
+router.get('/metrics/stream', (req, res) => {
+  const clientId = randomUUID()
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
+  res.flushHeaders()
+
+  res.write(`event: connected\ndata: ${JSON.stringify({ id: clientId, clients: clientCount() + 1 })}\n\n`)
+
+  addClient(clientId, res)
+  req.on('close', () => removeClient(clientId))
 })
 
 export default router

@@ -6,8 +6,11 @@ export type EventType =
   | 'user_message'
   | 'agent_response'
   | 'task_update'
+  | 'task_created'
+  | 'git_commit'
   | 'context_load'
   | 'tool_call'
+  | string // allow future event types from collectors
 
 export interface Session {
   id: string

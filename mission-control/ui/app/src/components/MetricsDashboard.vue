@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, onUnmounted, computed } from 'vue'
 import { useMetricsStore } from '../stores/metricsStore'
 
 const store = useMetricsStore()
 
-onMounted(() => store.loadAll())
+onMounted(() => {
+  store.loadAll()
+  store.connectSSE()
+})
+
+onUnmounted(() => {
+  store.disconnectSSE()
+})
 
 function fmt(n: number | undefined | null): string {
   if (n == null) return '0'
@@ -21,20 +28,48 @@ const maxDailyTokens = computed(() => {
   const vals = store.dailyTokens.map(d => d.tokens_input + d.tokens_output)
   return vals.length ? Math.max(...vals) : 1
 })
+
+const lastUpdatedAgo = computed(() => {
+  if (!store.lastUpdated) return null
+  const diff = Date.now() - new Date(store.lastUpdated).getTime()
+  if (diff < 5000) return 'just now'
+  if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`
+  return `${Math.floor(diff / 60000)}m ago`
+})
 </script>
 
 <template>
   <div class="p-6 space-y-6">
     <!-- Header row -->
     <div class="flex items-center justify-between">
-      <h2 class="text-lg font-semibold text-white">📊 Metrics Dashboard</h2>
-      <button
-        class="px-3 py-1.5 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
-        :disabled="store.loading"
-        @click="store.loadAll()"
-      >
-        {{ store.loading ? 'Refreshing…' : '↻ Refresh' }}
-      </button>
+      <div class="flex items-center gap-3">
+        <h2 class="text-lg font-semibold text-white">📊 Metrics Dashboard</h2>
+        <span
+          v-if="store.isLive"
+          class="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-900/60 text-emerald-400 border border-emerald-800/50"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+          LIVE
+        </span>
+        <span
+          v-else
+          class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-500 border border-slate-700"
+        >
+          OFFLINE
+        </span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span v-if="lastUpdatedAgo" class="text-xs text-slate-500">
+          Updated {{ lastUpdatedAgo }}
+        </span>
+        <button
+          class="px-3 py-1.5 text-xs rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+          :disabled="store.loading"
+          @click="store.loadAll()"
+        >
+          {{ store.loading ? 'Refreshing…' : '↻ Refresh' }}
+        </button>
+      </div>
     </div>
 
     <!-- Error -->
@@ -43,8 +78,12 @@ const maxDailyTokens = computed(() => {
     </div>
 
     <!-- Summary cards -->
-    <div v-if="store.summary" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+    <div
+      v-if="store.summary"
+      class="grid grid-cols-2 md:grid-cols-4 gap-3 transition-all duration-500"
+      :class="{ 'opacity-75': store.hasNewData }"
+    >
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4" :class="{ 'border-emerald-800/60': store.hasNewData }">
         <p class="text-xs text-slate-500 mb-1">Total Tokens</p>
         <p class="text-2xl font-bold text-emerald-400">
           {{ fmt((store.summary.total_tokens_input ?? 0) + (store.summary.total_tokens_output ?? 0)) }}
@@ -53,17 +92,17 @@ const maxDailyTokens = computed(() => {
           ↑ {{ fmt(store.summary.total_tokens_input) }} in · {{ fmt(store.summary.total_tokens_output) }} out
         </p>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4" :class="{ 'border-emerald-800/60': store.hasNewData }">
         <p class="text-xs text-slate-500 mb-1">Sessions</p>
         <p class="text-2xl font-bold text-blue-400">{{ store.summary.total_sessions ?? 0 }}</p>
         <p class="text-xs text-slate-600 mt-1">{{ store.summary.total_events ?? 0 }} events total</p>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4" :class="{ 'border-emerald-800/60': store.hasNewData }">
         <p class="text-xs text-slate-500 mb-1">Skills Used</p>
         <p class="text-2xl font-bold text-violet-400">{{ store.summary.total_skills_invoked ?? 0 }}</p>
         <p class="text-xs text-slate-600 mt-1">{{ store.summary.unique_skills ?? 0 }} unique · top: {{ store.summary.top_skill || '-' }}</p>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-4" :class="{ 'border-emerald-800/60': store.hasNewData }">
         <p class="text-xs text-slate-500 mb-1">Agents Used</p>
         <p class="text-2xl font-bold text-amber-400">{{ store.summary.total_agents_invoked ?? 0 }}</p>
         <p class="text-xs text-slate-600 mt-1">{{ store.summary.unique_agents ?? 0 }} unique · top: {{ store.summary.top_agent || '-' }}</p>
@@ -214,16 +253,28 @@ const maxDailyTokens = computed(() => {
     </div>
 
     <!-- Recent events feed -->
-    <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
-      <p class="text-xs text-slate-500 font-medium uppercase tracking-wide px-4 py-3 border-b border-slate-800">
-        Recent Events (last 20)
-      </p>
+    <div
+      class="bg-slate-900 border rounded-lg overflow-hidden transition-colors duration-300"
+      :class="store.hasNewData ? 'border-emerald-800/60' : 'border-slate-800'"
+    >
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">
+          Recent Events (last 20)
+        </p>
+        <span
+          v-if="store.hasNewData"
+          class="text-[10px] font-medium text-emerald-400 animate-pulse"
+        >
+          ● New event
+        </span>
+      </div>
       <div v-if="!store.events.length" class="px-4 py-6 text-xs text-slate-600 text-center">No events yet</div>
       <div v-else class="divide-y divide-slate-800/50">
         <div
-          v-for="ev in store.events"
+          v-for="(ev, idx) in store.events"
           :key="ev.id"
-          class="px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 hover:bg-slate-800/30 text-xs"
+          class="px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-1 hover:bg-slate-800/30 text-xs transition-colors"
+          :class="{ 'bg-emerald-950/20': idx === 0 && store.hasNewData }"
         >
           <span class="text-slate-500 font-mono w-36 shrink-0">{{ fmtDate(ev.timestamp) }}</span>
           <span
@@ -232,12 +283,15 @@ const maxDailyTokens = computed(() => {
               'bg-violet-900/60 text-violet-300': ev.event_type === 'skill_invoked',
               'bg-amber-900/60 text-amber-300': ev.event_type === 'agent_invoked',
               'bg-blue-900/60 text-blue-300': ev.event_type === 'user_message' || ev.event_type === 'agent_response',
-              'bg-slate-700 text-slate-300': !['skill_invoked','agent_invoked','user_message','agent_response'].includes(ev.event_type),
+              'bg-green-900/60 text-green-300': ev.event_type === 'task_update' || ev.event_type === 'task_created',
+              'bg-indigo-900/60 text-indigo-300': ev.event_type === 'git_commit',
+              'bg-slate-700 text-slate-300': !['skill_invoked','agent_invoked','user_message','agent_response','task_update','task_created','git_commit'].includes(ev.event_type),
             }"
           >{{ ev.event_type }}</span>
           <span v-if="ev.skill_name" class="text-violet-300">{{ ev.skill_name }}</span>
           <span v-if="ev.agent_name" class="text-amber-300">{{ ev.agent_name }}</span>
           <span v-if="ev.task_id" class="text-slate-400">task: {{ ev.task_id }}</span>
+          <span v-if="ev.workspace && ev.workspace !== 'workspace'" class="text-slate-500">{{ ev.workspace }}</span>
           <span v-if="ev.tokens_input || ev.tokens_output" class="text-emerald-400 ml-auto">
             {{ fmt((ev.tokens_input ?? 0) + (ev.tokens_output ?? 0)) }} tok
           </span>

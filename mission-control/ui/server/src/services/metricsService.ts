@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { mkdirSync } from 'fs'
+import { broadcast } from './sseService.js'
 import type {
   Session,
   MetricEvent,
@@ -47,6 +48,13 @@ function initSchema(db: InstanceType<typeof DatabaseSync>): void {
       total_tokens_output INTEGER DEFAULT 0,
       event_count   INTEGER DEFAULT 0
     );
+
+    -- System sessions for automatic collectors
+    INSERT OR IGNORE INTO sessions (id, started_at, workspace, model) VALUES
+      ('kanban-watcher', datetime('now'), 'system', 'none'),
+      ('git-poller',     datetime('now'), 'system', 'none'),
+      ('git-hook',       datetime('now'), 'system', 'none'),
+      ('opencode-hook',  datetime('now'), 'system', 'none');
 
     CREATE TABLE IF NOT EXISTS events (
       id                  INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -135,6 +143,14 @@ export function insertEvent(event: Omit<MetricEvent, 'id'>): MetricEvent {
   const ti = row.tokens_input ?? 0
   const to = row.tokens_output ?? 0
 
+  // Auto-create session if not exists (handles ad-hoc / external callers)
+  if (row.session_id) {
+    db.prepare(`
+      INSERT OR IGNORE INTO sessions (id, started_at, workspace, model)
+      VALUES (?, ?, ?, ?)
+    `).run(row.session_id, timestamp, row.workspace ?? null, row.model ?? null)
+  }
+
   const info = db.prepare(`
     INSERT INTO events (session_id, timestamp, event_type, workspace, model, skill_name, agent_name,
       task_id, tokens_input, tokens_output, context_files_count, duration_ms, status, metadata)
@@ -167,7 +183,10 @@ export function insertEvent(event: Omit<MetricEvent, 'id'>): MetricEvent {
     `).run(ti, to, row.session_id)
   }
 
-  return { ...row, id: Number((info as { lastInsertRowid: number | bigint }).lastInsertRowid) }
+  // Broadcast to SSE clients and return
+  const inserted: MetricEvent = { ...row, id: Number((info as { lastInsertRowid: number | bigint }).lastInsertRowid) }
+  broadcast('metric', inserted)
+  return inserted
 }
 
 export function listEvents(filters: {

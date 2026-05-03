@@ -23,6 +23,15 @@ export const useMetricsStore = defineStore('metrics', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  // Live update state
+  const isLive = ref(false)
+  const lastUpdated = ref<string | null>(null)
+  const hasNewData = ref(false)
+
+  let _pollTimer: ReturnType<typeof setInterval> | null = null
+  let _sseRetryTimer: ReturnType<typeof setTimeout> | null = null
+  let _es: EventSource | null = null
+
   async function fetchJson<T>(path: string): Promise<T> {
     const res = await fetch(`${BASE}${path}`)
     if (!res.ok) throw new Error(`HTTP ${res.status} on ${path}`)
@@ -70,6 +79,7 @@ export const useMetricsStore = defineStore('metrics', () => {
         loadDailyTokens(),
         loadSessions(),
       ])
+      lastUpdated.value = new Date().toISOString()
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load metrics'
     } finally {
@@ -77,10 +87,71 @@ export const useMetricsStore = defineStore('metrics', () => {
     }
   }
 
+  function _flashNew(): void {
+    hasNewData.value = true
+    setTimeout(() => { hasNewData.value = false }, 2500)
+  }
+
+  function startPolling(intervalMs = 5000): void {
+    if (_pollTimer) clearInterval(_pollTimer)
+    _pollTimer = setInterval(async () => {
+      await loadAll()
+    }, intervalMs)
+  }
+
+  function stopPolling(): void {
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null }
+  }
+
+  function connectSSE(): void {
+    if (_es) return
+    try {
+      _es = new EventSource(`${BASE}/stream`)
+
+      _es.addEventListener('connected', () => {
+        isLive.value = true
+        stopPolling()
+      })
+
+      _es.addEventListener('metric', async () => {
+        _flashNew()
+        // Quick partial refresh first, then full reload
+        await Promise.all([loadSummary(), loadEvents()])
+        await loadAll()
+      })
+
+      // Keep-alive ping — no action needed
+      _es.addEventListener('ping', () => {/* noop */})
+
+      _es.onerror = () => {
+        isLive.value = false
+        _es?.close()
+        _es = null
+        startPolling()
+        if (_sseRetryTimer) clearTimeout(_sseRetryTimer)
+        _sseRetryTimer = setTimeout(() => {
+          _sseRetryTimer = null
+          connectSSE()
+        }, 15_000)
+      }
+    } catch {
+      startPolling()
+    }
+  }
+
+  function disconnectSSE(): void {
+    _es?.close()
+    _es = null
+    isLive.value = false
+    stopPolling()
+    if (_sseRetryTimer) { clearTimeout(_sseRetryTimer); _sseRetryTimer = null }
+  }
+
   return {
     summary, events, skills, agents, models, dailyTokens, sessions,
-    loading, error,
+    loading, error, isLive, lastUpdated, hasNewData,
     loadAll, loadSummary, loadEvents, loadSkills, loadAgents,
     loadModels, loadDailyTokens, loadSessions,
+    connectSSE, disconnectSSE, startPolling, stopPolling,
   }
 })
