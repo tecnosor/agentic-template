@@ -1,0 +1,64 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "mission-control/AGENTS.md"
+  ],
+  "model": "anthropic/claude-sonnet-4-20250514",
+  "temperature": 0.1,
+  "agent": {
+    "orchestrator": {
+      "description": "Task lifecycle coordinator. Reads kanban, creates feature branches, delegates to builder+guardian. Never writes code.",
+      "mode": "primary",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:.opencode/agents/orchestrator.md}"
+    },
+    "builder": {
+      "description": "Implementation agent. Writes code, fixes bugs, creates tests. Works on feature branches only.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:.opencode/agents/builder.md}"
+    },
+    "guardian": {
+      "description": "Security and compliance auditor. OWASP Top 10, GDPR, DORA, PSD2 checks. Read-only.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:.opencode/agents/guardian.md}"
+    },
+    "validator": {
+      "description": "Build and test gate. Runs npm/Maven pipelines sequentially, stops on first failure.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:.opencode/agents/validator.md}"
+    },
+    "reviewer": {
+      "description": "PR creation agent. Always the last step after validator passes.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:.opencode/agents/reviewer.md}"
+    },
+    "project-scout": {
+      "description": "Backlog analysis agent. Finds TODOs, FIXMEs, incomplete features. Proposes tasks — never writes to kanban.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:.opencode/agents/project-scout.md}"
+    },
+    "history-mapper": {
+      "description": "Maps git history and docs into kanban task files with status: done. Normalizes to English.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:.opencode/agents/history-mapper.md}"
+    },
+    "lang-enforcer": {
+      "description": "Detects and fixes non-English content. Never touches i18n/locales translation files.",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:.opencode/agents/lang-enforcer.md}"
+    }
+  },
+  "permission": {
+    "skill": {
+      "*": "allow"
+    }
+  }
+}

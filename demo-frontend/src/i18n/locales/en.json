@@ -1,0 +1,57 @@
+{
+  "common": {
+    "buttons": {
+      "submit": "Submit",
+      "cancel": "Cancel",
+      "learnMore": "Learn More",
+      "getStarted": "Get Started"
+    },
+    "loading": "Loading…",
+    "error": "An error occurred. Please try again."
+  },
+  "components": {
+    "header": {
+      "nav": {
+        "home": "Home",
+        "about": "About"
+      },
+      "skipLink": "Skip to main content"
+    },
+    "footer": {
+      "copyright": "© {year} Enterprise App Template. All rights reserved."
+    }
+  },
+  "pages": {
+    "home": {
+      "hero": {
+        "title": "Build Enterprise Applications",
+        "subtitle": "A production-ready template with DDD, Clean Architecture, and CQRS built in.",
+        "cta": "Get Started"
+      },
+      "features": {
+        "title": "What's Included",
+        "ddd": {
+          "title": "Domain-Driven Design",
+          "description": "Bounded contexts, aggregates, value objects, and domain events following DDD principles."
+        },
+        "cqrs": {
+          "title": "CQRS + Vertical Slice",
+          "description": "Commands and queries self-contained in feature slices. Easy to navigate, easy to extend."
+        },
+        "compliance": {
+          "title": "Compliance Ready",
+          "description": "GDPR, DORA, and PSD2 checklists included. Security patterns from OWASP Top 10."
+        }
+      }
+    },
+    "about": {
+      "title": "About This Template",
+      "description": "An opinionated, production-grade starting point for enterprise applications. Reuse the architecture, governance workflow, and quality standards — replace the demo code with your business logic.",
+      "stack": {
+        "title": "Technology Stack",
+        "backend": "Node.js + TypeScript + Express + TSyringe",
+        "frontend": "Vue 3 + TypeScript + Vite + Vue I18n + Pinia"
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# Ignore the SQLite metrics database (contains local session data)
+*.db
+*.db-shm
+*.db-wal

@@ -1,0 +1,163 @@
+import { readFileSync, existsSync, readdirSync } from 'fs'
+import { resolve, join } from 'path'
+import { WORKSPACE_ROOT, REPOS } from '../config.js'
+import type { KanbanTask, KanbanColumn, Priority, Origin } from '../types/kanban.js'
+import { getCommentsForTask } from './kanbanWriter.js'
+
+// ── Normalisation helpers ─────────────────────────────────────────────────────
+
+function normalizeOrigin(raw = ''): Origin {
+  const lower = raw.toLowerCase().trim()
+  if (lower === 'agent' || raw.includes('🤖')) return '🤖 Agent'
+  return '👤 Human'
+}
+
+function normalizePriority(raw = ''): Priority {
+  const u = raw.toUpperCase().trim()
+  if (u === 'CRITICAL') return 'CRITICAL'
+  if (u === 'HIGH') return 'HIGH'
+  if (u === 'LOW') return 'LOW'
+  return 'MEDIUM'
+}
+
+function normalizeStatus(raw = ''): KanbanColumn {
+  const u = raw.toUpperCase().trim()
+  const valid: KanbanColumn[] = [
+    'BACKLOG',
+    'TODO',
+    'READY',
+    'DOING',
+    'TESTING',
+    'HUMAN_VALIDATION',
+    'DONE',
+  ]
+  return valid.includes(u as KanbanColumn) ? (u as KanbanColumn) : 'BACKLOG'
+}
+
+// ── YAML frontmatter parser ───────────────────────────────────────────────────
+
+function parseFrontmatter(content: string): { fields: Record<string, string>; body: string } {
+  const fields: Record<string, string> = {}
+
+  if (!content.startsWith('---')) {
+    return { fields, body: content }
+  }
+
+  const end = content.indexOf('\n---', 3)
+  if (end === -1) return { fields, body: content }
+
+  const yamlSection = content.slice(3, end).trim()
+  const body = content.slice(end + 4).trim()
+
+  for (const line of yamlSection.split('\n')) {
+    const colonIdx = line.indexOf(':')
+    if (colonIdx === -1) continue
+    const key = line.slice(0, colonIdx).trim()
+    let value = line.slice(colonIdx + 1).trim()
+    // Strip surrounding quotes
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1)
+    }
+    if (key) fields[key] = value
+  }
+
+  return { fields, body }
+}
+
+function extractBodySections(body: string): {
+  description: string
+  acceptanceCriteria?: string
+} {
+  const descMatch = body.match(/###?\s+Description\s*\n([\s\S]*?)(?=###|$)/)
+  const acMatch = body.match(/###?\s+Acceptance Criteria\s*\n([\s\S]*?)(?=###|$)/)
+
+  const raw = descMatch?.[1]?.trim() ?? ''
+  const description = raw === '_(empty)_' ? '' : raw
+  const acRaw = acMatch?.[1]?.trim()
+  const acceptanceCriteria = acRaw === '_(empty)_' ? undefined : acRaw
+
+  return { description, acceptanceCriteria }
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export function readTaskFile(filePath: string, repo: string): KanbanTask | null {
+  if (!existsSync(filePath)) return null
+
+  try {
+    const content = readFileSync(filePath, 'utf-8')
+    const { fields, body } = parseFrontmatter(content)
+
+    const id = fields['id']
+    if (!id) return null
+
+    const { description, acceptanceCriteria } = extractBodySections(body)
+
+    return {
+      id,
+      title: fields['title'] || undefined,
+      origin: normalizeOrigin(fields['origin'] ?? ''),
+      status: normalizeStatus(fields['status'] ?? ''),
+      priority: normalizePriority(fields['priority'] ?? ''),
+      repo: fields['repo'] || repo,
+      description,
+      acceptanceCriteria,
+      created: fields['created'] || '',
+      updated: fields['updated'] || '',
+      leadTime: fields['lead_time'] ?? fields['lead-time'] ?? '—',
+    }
+  } catch (error) {
+    console.warn(`[kanbanReader] Could not parse ${filePath}:`, error)
+    return null
+  }
+}
+
+export function readAllTasks(includeComments = false): KanbanTask[] {
+  const tasks: KanbanTask[] = []
+
+  for (const repo of REPOS) {
+    const tasksDir = resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks')
+    if (!existsSync(tasksDir)) continue
+
+    try {
+      const files = readdirSync(tasksDir).filter((f) => f.endsWith('.md'))
+      for (const file of files) {
+        const filePath = join(tasksDir, file)
+        const task = readTaskFile(filePath, repo)
+        if (task) {
+          if (includeComments) {
+            task.comments = getCommentsForTask(repo, task.id)
+          }
+          tasks.push(task)
+        }
+      }
+    } catch (error) {
+      console.warn(`[kanbanReader] Could not scan ${tasksDir}:`, error)
+    }
+  }
+
+  return tasks
+}
+
+export function readTaskById(
+  repo: string,
+  taskId: string,
+): (KanbanTask & { comments: import('../types/kanban.js').KanbanComment[] }) | null {
+  const filePath = resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks', `${taskId}.md`)
+  const task = readTaskFile(filePath, repo)
+  if (!task) return null
+  return { ...task, comments: getCommentsForTask(repo, taskId) }
+}
+
+export function findTaskLocation(
+  repo: string,
+  taskId: string,
+): { column: KanbanColumn; filename: string } | null {
+  const filePath = resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks', `${taskId}.md`)
+  const task = readTaskFile(filePath, repo)
+  if (!task) return null
+  return { column: task.status, filename: `tasks/${taskId}.md` }
+}
