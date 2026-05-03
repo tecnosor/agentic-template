@@ -26,6 +26,8 @@ function ensureMetricsDir(): void {
 
 let _db: InstanceType<typeof DatabaseSync> | null = null
 
+type SqlParam = string | number | bigint | Uint8Array | null
+
 function getDb(): InstanceType<typeof DatabaseSync> {
   if (_db) return _db
   ensureMetricsDir()
@@ -109,11 +111,11 @@ export function createSession(session: Omit<Session, 'total_tokens_input' | 'tot
 export function updateSession(id: string, patch: Partial<Omit<Session, 'id'>>): void {
   const db = getDb()
   const fields: string[] = []
-  const values: unknown[] = []
+  const values: SqlParam[] = []
   for (const [k, v] of Object.entries(patch)) {
     if (v !== undefined) {
       fields.push(`${k} = ?`)
-      values.push(v)
+      values.push(v as SqlParam)
     }
   }
   if (fields.length === 0) return
@@ -125,7 +127,7 @@ export function listSessions(limit = 50, offset = 0): Session[] {
   const db = getDb()
   return db.prepare(`
     SELECT * FROM sessions ORDER BY started_at DESC LIMIT ? OFFSET ?
-  `).all(limit, offset) as Session[]
+  `).all(limit, offset) as unknown as Session[]
 }
 
 export function getSession(id: string): Session | undefined {
@@ -200,7 +202,7 @@ export function listEvents(filters: {
 } = {}): MetricEvent[] {
   const db = getDb()
   const conds: string[] = []
-  const vals: unknown[] = []
+  const vals: SqlParam[] = []
 
   if (filters.session_id) { conds.push('session_id = ?'); vals.push(filters.session_id) }
   if (filters.event_type) { conds.push('event_type = ?'); vals.push(filters.event_type) }
@@ -214,7 +216,7 @@ export function listEvents(filters: {
 
   return db.prepare(`
     SELECT * FROM events ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?
-  `).all(...vals, limit, offset) as MetricEvent[]
+  `).all(...vals, limit, offset) as unknown as MetricEvent[]
 }
 
 // ─── Aggregated Stats ─────────────────────────────────────────────────────────
@@ -233,7 +235,7 @@ export function getSkillStats(): SkillStat[] {
     WHERE skill_name IS NOT NULL AND event_type = 'skill_invoked'
     GROUP BY skill_name
     ORDER BY invocations DESC
-  `).all() as SkillStat[]
+  `).all() as unknown as SkillStat[]
 }
 
 export function getAgentStats(): AgentStat[] {
@@ -250,7 +252,7 @@ export function getAgentStats(): AgentStat[] {
     WHERE agent_name IS NOT NULL AND event_type = 'agent_invoked'
     GROUP BY agent_name
     ORDER BY invocations DESC
-  `).all() as AgentStat[]
+  `).all() as unknown as AgentStat[]
 }
 
 export function getModelStats(): ModelStat[] {
@@ -265,7 +267,7 @@ export function getModelStats(): ModelStat[] {
     WHERE model IS NOT NULL
     GROUP BY model
     ORDER BY total_tokens_input + total_tokens_output DESC
-  `).all() as ModelStat[]
+  `).all() as unknown as ModelStat[]
 }
 
 export function getDailyTokenStats(days = 30): DailyTokenStat[] {
@@ -280,7 +282,7 @@ export function getDailyTokenStats(days = 30): DailyTokenStat[] {
     WHERE timestamp >= datetime('now', '-${days} days')
     GROUP BY date
     ORDER BY date ASC
-  `).all() as DailyTokenStat[]
+  `).all() as unknown as DailyTokenStat[]
 }
 
 export function getSummary(): MetricsSummary {
@@ -300,7 +302,7 @@ export function getSummary(): MetricsSummary {
       COUNT(DISTINCT e.model)        AS unique_models
     FROM sessions s
     LEFT JOIN events e ON e.session_id = s.id
-  `).get() as Record<string, number>
+  `).get() as Record<string, number | null>
 
   const topSkill = db.prepare(`
     SELECT skill_name FROM events
@@ -338,7 +340,7 @@ export function getSummary(): MetricsSummary {
 
 export function exportAll(): { sessions: Session[]; events: MetricEvent[] } {
   const db = getDb()
-  const sessions = db.prepare('SELECT * FROM sessions ORDER BY started_at').all() as Session[]
-  const events   = db.prepare('SELECT * FROM events ORDER BY timestamp').all() as MetricEvent[]
+  const sessions = db.prepare('SELECT * FROM sessions ORDER BY started_at').all() as unknown as Session[]
+  const events   = db.prepare('SELECT * FROM events ORDER BY timestamp').all() as unknown as MetricEvent[]
   return { sessions, events }
 }

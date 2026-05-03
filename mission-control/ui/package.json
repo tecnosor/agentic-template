@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "install:all": "npm install --prefix server && npm install --prefix app",
-    "dev": "concurrently -k -n server,client -c cyan,green \"npm run dev --prefix server\" \"npm run dev --prefix app\"",
+    "dev": "node ./node_modules/concurrently/dist/bin/concurrently.js -k -n server,client -c cyan,green \"npm run dev --prefix server\" \"npm run dev --prefix app\"",
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm run dev --prefix app"
   },
