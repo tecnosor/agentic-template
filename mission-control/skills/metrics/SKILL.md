@@ -24,6 +24,7 @@ Agents should record the following **manually** during their work:
 http://localhost:3099/api/metrics
 ```
 
+> Default local dev endpoint. If your Mission Control server runs elsewhere, update the host/port accordingly.
 > If the server is not running, skip silently. Metrics collection is non-blocking.
 
 ---
@@ -160,4 +161,4 @@ node .opencode/hooks/metrics-reporter.js agent_invoked '{"agent_name":"builder",
 Metrics are supplemental. Never block actual work — wrap all POSTs in try/catch.
 
 ## Dashboard
-View at: **http://localhost:3099** → 📊 Metrics tab.
+View at: **http://localhost:5174** → **Metrics** tab (API stays on port `3099` by default).

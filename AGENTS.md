@@ -10,7 +10,7 @@ A production-ready, public project template for enterprise applications.
 Architecture: **DDD + Clean Architecture + CQRS + Vertical Slice**.
 Standards: **GDPR, DORA, PSD2, ISO 20022, OWASP Top 10, WCAG 2.1 AA**.
 
-Includes three workspaces:
+Default template workspaces:
 - `demo-backend/` — Node.js + TypeScript REST API (replace with your backend)
 - `demo-frontend/` — Vue 3 + TypeScript SPA (replace with your frontend)
 - `mission-control/` — Governance: kanban, skills, agents, compliance
@@ -133,7 +133,7 @@ template/
 
 ---
 
-## Workspace Repos (replace with your services)
+## Default Workspace Repos
 
 | Repo | Layer | Role | Regulations |
 |------|-------|------|-------------|
@@ -146,7 +146,7 @@ template/
 ## Onboarding a New Service
 
 ```bash
-# 1. Copy demo-backend or demo-frontend as a starting point
+# 1. Copy one of the demo apps as a starting point
 cp -r demo-backend my-new-service
 
 # 2. Create kanban board

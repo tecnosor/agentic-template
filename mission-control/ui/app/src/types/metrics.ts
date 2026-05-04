@@ -7,6 +7,7 @@ export type EventType =
   | 'agent_response'
   | 'task_update'
   | 'task_created'
+  | 'task_deleted'
   | 'git_commit'
   | 'context_load'
   | 'tool_call'

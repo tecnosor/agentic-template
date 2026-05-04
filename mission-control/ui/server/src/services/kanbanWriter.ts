@@ -1,12 +1,16 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
 import { WORKSPACE_ROOT } from '../config.js'
-import type { KanbanColumn, KanbanComment } from '../types/kanban.js'
+import type { KanbanColumn, KanbanComment, KanbanTaskDraft } from '../types/kanban.js'
 
 // ── Comments sidecar (kanban/comments.json) ───────────────────────────────────
 
 function getCommentsPath(repo: string): string {
   return resolve(WORKSPACE_ROOT, repo, 'kanban', 'comments.json')
+}
+
+export function getTaskFilePath(repo: string, taskId: string): string {
+  return resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks', `${taskId}.md`)
 }
 
 function readCommentsFile(repo: string): Record<string, KanbanComment[]> {
@@ -37,7 +41,7 @@ export function addComment(repo: string, taskId: string, comment: KanbanComment)
  * Tasks live at kanban/tasks/{taskId}.md.
  */
 export function moveTask(repo: string, taskId: string, targetColumn: KanbanColumn): string {
-  const filePath = resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks', `${taskId}.md`)
+  const filePath = getTaskFilePath(repo, taskId)
 
   if (!existsSync(filePath)) {
     throw new Error(`Task ${taskId} not found: ${filePath}`)
@@ -63,7 +67,7 @@ export function updateGitHubIssueFields(
   issueNumber: number,
   issueUrl: string,
 ): void {
-  const filePath = resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks', `${taskId}.md`)
+  const filePath = getTaskFilePath(repo, taskId)
   if (!existsSync(filePath)) return
 
   const content = readFileSync(filePath, 'utf-8')
@@ -84,4 +88,40 @@ export function updateGitHubIssueFields(
   }
 
   writeFileSync(filePath, updated, 'utf-8')
+}
+
+export function createTask(repo: string, task: KanbanTaskDraft): string {
+  const tasksDir = resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks')
+  mkdirSync(tasksDir, { recursive: true })
+
+  const filePath = getTaskFilePath(repo, task.id)
+  if (existsSync(filePath)) {
+    throw new Error(`Task ${task.id} already exists in ${repo}`)
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const body = [
+    '---',
+    `id: ${task.id}`,
+    `title: "${task.title.replace(/"/g, '\\"')}"`,
+    `status: ${task.status}`,
+    `origin: "${task.origin}"`,
+    `priority: ${task.priority}`,
+    `repo: ${task.repo}`,
+    `created: ${today}`,
+    `updated: ${today}`,
+    '---',
+    '',
+    '## Description',
+    '',
+    task.description.trim() || '_(empty)_',
+    '',
+    '## Acceptance Criteria',
+    '',
+    task.acceptanceCriteria?.trim() || '_(empty)_',
+    '',
+  ].join('\n')
+
+  writeFileSync(filePath, `${body}\n`, 'utf-8')
+  return `tasks/${task.id}.md`
 }

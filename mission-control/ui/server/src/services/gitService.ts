@@ -21,8 +21,18 @@ export async function commitAndPush(repo: string, message: string): Promise<void
     }
 
     await git.commit(message)
-    await git.push()
-    console.info(`[git] Committed and pushed: ${message} (${repo})`)
+    const remotes = await git.getRemotes()
+    if (remotes.length === 0) {
+      console.info(`[git] Committed locally (no remote configured): ${message} (${repo})`)
+      return
+    }
+
+    try {
+      await git.push()
+      console.info(`[git] Committed and pushed: ${message} (${repo})`)
+    } catch (pushError) {
+      console.warn(`[git] Commit created but push skipped in ${repo}:`, pushError)
+    }
   } catch (error) {
     console.error(`[git] Failed to commit/push in ${repo}:`, error)
     throw error

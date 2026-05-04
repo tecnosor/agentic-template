@@ -20,6 +20,12 @@ function normalizePriority(raw = ''): Priority {
   return 'MEDIUM'
 }
 
+function parseOptionalNumber(raw?: string): number | undefined {
+  if (!raw) return undefined
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : undefined
+}
+
 function normalizeStatus(raw = ''): KanbanColumn {
   const u = raw.toUpperCase().trim()
   const valid: KanbanColumn[] = [
@@ -67,17 +73,21 @@ function parseFrontmatter(content: string): { fields: Record<string, string>; bo
   return { fields, body }
 }
 
+function extractSection(body: string, title: string): string | undefined {
+  const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`^##+\\s+${escapedTitle}\\s*\\n([\\s\\S]*?)(?=\\n##+\\s+|$)`, 'im')
+  const match = body.match(regex)
+  return match?.[1]?.trim()
+}
+
 function extractBodySections(body: string): {
   description: string
   acceptanceCriteria?: string
 } {
-  const descMatch = body.match(/###?\s+Description\s*\n([\s\S]*?)(?=###|$)/)
-  const acMatch = body.match(/###?\s+Acceptance Criteria\s*\n([\s\S]*?)(?=###|$)/)
-
-  const raw = descMatch?.[1]?.trim() ?? ''
-  const description = raw === '_(empty)_' ? '' : raw
-  const acRaw = acMatch?.[1]?.trim()
-  const acceptanceCriteria = acRaw === '_(empty)_' ? undefined : acRaw
+  const rawDescription = extractSection(body, 'Description') ?? ''
+  const description = rawDescription === '_(empty)_' ? '' : rawDescription
+  const rawAcceptanceCriteria = extractSection(body, 'Acceptance Criteria')
+  const acceptanceCriteria = rawAcceptanceCriteria === '_(empty)_' ? undefined : rawAcceptanceCriteria
 
   return { description, acceptanceCriteria }
 }
@@ -108,6 +118,9 @@ export function readTaskFile(filePath: string, repo: string): KanbanTask | null 
       created: fields['created'] || '',
       updated: fields['updated'] || '',
       leadTime: fields['lead_time'] ?? fields['lead-time'] ?? '—',
+      completed: fields['completed'] || undefined,
+      githubIssueNumber: parseOptionalNumber(fields['github_issue']),
+      githubIssueUrl: fields['github_url'] || undefined,
     }
   } catch (error) {
     console.warn(`[kanbanReader] Could not parse ${filePath}:`, error)
@@ -160,4 +173,8 @@ export function findTaskLocation(
   const task = readTaskFile(filePath, repo)
   if (!task) return null
   return { column: task.status, filename: `tasks/${taskId}.md` }
+}
+
+export function countTasksInColumn(column: KanbanColumn, repo?: string): number {
+  return readAllTasks(false).filter((task) => task.status === column && (!repo || task.repo === repo)).length
 }

@@ -2,7 +2,7 @@
 
 ## Status
 
-> **Live** — the Kanban UI is fully implemented and running.
+> **Live** — Mission Control is fully implemented and running.
 > Source of truth for tasks: `{repo}/kanban/tasks/*.md` files.
 
 ---
@@ -18,7 +18,7 @@ A web-based multi-repo kanban board and metrics dashboard for workspace governan
 | Framework | Vue 3.5+ (Composition API) |
 | State | Pinia |
 | Styling | Tailwind CSS 4 |
-| Build | Vite 7 |
+| Build | Vite 6 |
 | Language | TypeScript strict |
 | Server | Node.js 22+ + Express |
 | Database | SQLite (node:sqlite built-in) |
@@ -49,11 +49,13 @@ Open **http://localhost:5174** in your browser.
 ### Kanban Board (`/`)
 
 - **7-column board**: BACKLOG → TODO → READY → DOING → TESTING → HUMAN_VALIDATION → DONE
-- **Filter by Repo** — view tasks scoped to one or all repos
-- **Filter by Origin** — 👤 Human tasks vs 🤖 Agent tasks
-- **Priority Indicators** — CRITICAL (red) / HIGH (orange) / MEDIUM (yellow) / LOW (gray)
-- **DOING Column Guard** — max 2 simultaneous tasks enforced
-- **Task Detail Modal** — full metadata on click
+- **Manual task creation** from the UI (`+ New Task`)
+- **Move tasks from the modal** with server-side WIP and DONE guards
+- **Comments** stored in `kanban/comments.json`
+- **GitHub issue sync** per task
+- **Filter by Repo** and **Filter by Origin**
+- **Live refresh** for task create/update events via SSE, with polling fallback
+- **Source of truth remains markdown files**, not a separate kanban database
 
 ### Metrics Dashboard (`📊 Metrics` tab)
 
@@ -61,6 +63,7 @@ Open **http://localhost:5174** in your browser.
 - 30-day daily token usage bar chart
 - Per-skill, per-agent, per-model usage tables
 - Recent sessions and events feed
+- **Live metrics updates via SSE**
 - REST API at `http://localhost:3099/api/metrics`
 
 ---
@@ -83,7 +86,7 @@ Or copy `server/.env.example` → `server/.env` and set env vars.
 
 ## Data Source
 
-Tasks are read from `{WORKSPACE_ROOT}/{repo}/kanban/tasks/*.md` files.
+Tasks are read from `{WORKSPACE_ROOT}/{repo}/kanban/tasks/*.md` files using YAML frontmatter plus markdown body sections.
 Schema: see `ui/kanban-schema.md`.
 
 ---
@@ -100,8 +103,8 @@ Schema: see `ui/kanban-schema.md`.
 
 ---
 
-## Non-Goals
+## Notes
 
 - No authentication — this is an internal dev tool
-- No real-time sync — data refreshes on page load
-- No task editing from UI — editing happens via markdown files (agent or human)
+- Kanban data lives in markdown files; metrics live in SQLite
+- Task moves and manual task creation from UI write back to the markdown files

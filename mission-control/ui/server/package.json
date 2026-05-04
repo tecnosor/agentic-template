@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --import tsx/esm --watch src/index.ts",
-    "start": "node --import tsx/esm src/index.ts"
+    "dev": "node ./node_modules/tsx/dist/cli.mjs watch src/index.ts",
+    "start": "node ./node_modules/tsx/dist/cli.mjs src/index.ts"
   },
   "dependencies": {
     "@octokit/rest": "^21.0.2",

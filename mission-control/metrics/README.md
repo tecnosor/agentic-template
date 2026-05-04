@@ -53,8 +53,7 @@ mission-control/
 | `tokens_input` | INTEGER | Input tokens (estimated) |
 | `tokens_output` | INTEGER | Output tokens (estimated) |
 | `duration_ms` | INTEGER | Operation duration |
-| `status` | TEXT | success / error / skipped |
-| `context_files` | TEXT | JSON array of loaded files |
+| `context_files_count` | INTEGER | Number of loaded context files |
 | `metadata` | TEXT | JSON blob for extra data |
 
 ### Event Types
@@ -64,12 +63,15 @@ mission-control/
 | `skill_invoked` | A `/skill` or `@skill` is activated |
 | `agent_invoked` | A subagent is launched via `runSubagent` |
 | `task_update` | Kanban task status changes |
+| `task_deleted` | Kanban task file removed |
 | `context_load` | Context files are read/loaded |
 | `user_message` | User sends a new message |
-| `model_response` | Agent completes a response |
+| `agent_response` | Agent completes a response |
 | `tool_call` | Any tool is called |
 | `session_start` | Session begins |
 | `session_end` | Session ends |
+| `task_created` | New kanban task file created |
+| `git_commit` | Git commit detected by poller or hook |
 
 ---
 
@@ -153,7 +155,7 @@ This is a rough approximation (~4 chars per token for English/code). Actual coun
    cd mission-control/ui
    npm run dev
    ```
-2. Open: **http://localhost:3099**
+2. Open: **http://localhost:5174**
 3. Click the **📊 Metrics** tab
 
 The dashboard shows:
@@ -203,11 +205,11 @@ sqlite3 $DB "SELECT model, COUNT(*) as events, SUM(tokens_input) as tin, SUM(tok
 
 ## Metrics Skill
 
-Skills and agents report metrics automatically when the `metrics` skill is active.
-See: `.github/skills/metrics/SKILL.md`
+Skills and agents can report metrics via the `metrics` skill and `.opencode/hooks/metrics-reporter.js`.
+See: `mission-control/skills/metrics/SKILL.md`
 
 ## Metrics Collector Agent
 
 Read-only agent for generating reports on demand.
-See: `.github/agents/metrics-collector.agent.md`
+See: `mission-control/.github/agents/metrics-collector.agent.md`
 Activate with: "metrics report" or "token usage summary"

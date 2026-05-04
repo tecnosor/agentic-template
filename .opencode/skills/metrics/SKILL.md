@@ -3,7 +3,15 @@
 ## Purpose
 Track and record all agent/skill activity metrics to the Mission Control metrics API (SQLite via REST).
 
-## When to Activate
+## Automatic Collection
+The following are recorded **automatically** without agent action:
+- **Kanban task changes** — `kanban-watcher` detects file changes in `*/kanban/tasks/*.md`
+- **Git commits** — `git-poller` detects new commits every 5 minutes; `git-hook` fires on each commit (requires `setup-git-hooks.sh`)
+- **Dashboard** auto-refreshes via Server-Sent Events (SSE) when the server is running
+
+Agents should record the following **manually** during their work:
+
+## When to Activate (manual agent events)
 - At the start of every conversation (POST session)
 - When a skill is invoked (POST event: `skill_invoked`)
 - When a subagent is invoked (POST event: `agent_invoked`)
@@ -16,6 +24,7 @@ Track and record all agent/skill activity metrics to the Mission Control metrics
 http://localhost:3099/api/metrics
 ```
 
+> Default local dev endpoint. If your Mission Control server runs elsewhere, update the host/port accordingly.
 > If the server is not running, skip silently. Metrics collection is non-blocking.
 
 ---
@@ -137,8 +146,19 @@ Content-Type: application/json
 
 ---
 
+## Hook Reporter (CLI helper)
+
+Agents can also call the hook reporter via bash for quick event recording:
+
+```bash
+node .opencode/hooks/metrics-reporter.js skill_invoked '{"skill_name":"code-review","tokens_input":1200}'
+node .opencode/hooks/metrics-reporter.js agent_invoked '{"agent_name":"builder","tokens_input":800}'
+```
+
+---
+
 ## Error Handling
 Metrics are supplemental. Never block actual work — wrap all POSTs in try/catch.
 
 ## Dashboard
-View at: **http://localhost:3099** → 📊 Metrics tab.
+View at: **http://localhost:5174** → **Metrics** tab (API stays on port `3099` by default).

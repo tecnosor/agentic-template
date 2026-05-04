@@ -29,10 +29,20 @@ app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' })
 })
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.info(`Kanban API server running at http://localhost:${PORT}`)
 
   // Start background collectors
   startKanbanWatcher()
   startGitPoller().catch(() => {/* non-blocking */})
 })
+
+function shutdown(signal: string) {
+  console.info(`Shutting down Mission Control server (${signal})`)
+  server.close(() => {
+    process.exit(0)
+  })
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'))
+process.on('SIGTERM', () => shutdown('SIGTERM'))

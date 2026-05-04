@@ -1,95 +1,84 @@
 # Kanban Task Schema
 
-> This schema defines the canonical structure for all kanban tasks across `{repo}/kanban/tasks/*.md` files.
-> The Kanban UI (see `ui/README.md`) uses this schema to parse and render tasks.
+> Canonical task format for Mission Control.
+> Source of truth: `{repo}/kanban/tasks/*.md`
 
 ---
 
-## Markdown Table Format (source of truth)
+## File Format
 
-Each task in `kanban/tasks/` is represented as a two-column markdown table:
+Each task is a **single markdown file** with:
 
-```markdown
-| Field | Value |
-|-------|-------|
-| **ID** | FEAT-001 |
-| **Origin** | 👤 Human |
-| **Status** | READY |
-| **Priority** | HIGH |
-| **Repo** | demo-backend |
-| **Description** | Add JWT authentication to the REST API |
-| **Acceptance Criteria** | - [ ] POST /auth/login returns signed JWT\n- [ ] Tests passing |
-| **Created** | 2026-01-01 |
-| **Updated** | 2026-01-01 |
-| **Lead Time** | — |
+1. **YAML frontmatter** for structured metadata
+2. A `## Description` section
+3. An optional `## Acceptance Criteria` section
+
+```md
+---
+id: FEAT-001
+title: "Add API key rotation flow"
+status: READY
+origin: "👤 Human"
+priority: HIGH
+repo: demo-backend
+created: 2026-01-01
+updated: 2026-01-01
+lead_time: "—"
+github_issue: 42
+github_url: "https://github.com/org/repo/issues/42"
+---
+
+## Description
+
+Add the API key rotation workflow to the backend service.
+
+## Acceptance Criteria
+
+- [ ] Rotation endpoint exists
+- [ ] Old key is invalidated
+- [ ] Tests cover the happy path and invalid input
 ```
 
 ---
 
-## JSON Schema (for UI parsing)
+## Required Frontmatter Fields
 
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "KanbanTask",
-  "type": "object",
-  "required": ["id", "origin", "status", "priority", "repo", "description", "created", "updated"],
-  "properties": {
-    "id": {
-      "type": "string",
-      "pattern": "^(FEAT|FIX|CHORE|SCOUT|DONE|BACKLOG|LANG)-[0-9]{3,}$",
-      "description": "Unique task ID. Immutable once assigned.",
-      "examples": ["FEAT-001", "FIX-042", "DONE-015"]
-    },
-    "origin": {
-      "type": "string",
-      "enum": ["👤 Human", "🤖 Agent"],
-      "description": "Who created the task. IMMUTABLE once set."
-    },
-    "status": {
-      "type": "string",
-      "enum": ["BACKLOG", "TODO", "READY", "DOING", "TESTING", "HUMAN_VALIDATION", "DONE"],
-      "description": "Current kanban column. DOING max = 2 tasks at any time."
-    },
-    "priority": {
-      "type": "string",
-      "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
-    },
-    "repo": {
-      "type": "string",
-      "description": "Target repository folder name or 'all' for cross-repo tasks.",
-      "examples": [
-        "demo-backend",
-        "demo-frontend",
-        "mission-control",
-        "all"
-      ]
-    },
-    "description": {
-      "type": "string",
-      "description": "What needs to be done. Written in English."
-    },
-    "acceptanceCriteria": {
-      "type": "string",
-      "description": "Checklist items that define done. Written in English."
-    },
-    "created": {
-      "type": "string",
-      "format": "date",
-      "description": "ISO 8601 date when task was created."
-    },
-    "updated": {
-      "type": "string",
-      "format": "date",
-      "description": "ISO 8601 date of last status change."
-    },
-    "leadTime": {
-      "type": ["string", "null"],
-      "description": "Business days from READY to DONE. Null until completed.",
-      "examples": ["3 days", "—"]
-    }
-  }
-}
+| Field | Type | Notes |
+|------|------|------|
+| `id` | string | `FEAT-001`, `FIX-042`, `SCOUT-007`, etc. |
+| `title` | string | Short human-readable title |
+| `status` | string | `BACKLOG`, `TODO`, `READY`, `DOING`, `TESTING`, `HUMAN_VALIDATION`, `DONE` |
+| `origin` | string | `👤 Human` or `🤖 Agent` |
+| `priority` | string | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` |
+| `repo` | string | Workspace repo folder name |
+| `created` | date | ISO date (`YYYY-MM-DD`) |
+| `updated` | date | ISO date (`YYYY-MM-DD`) |
+
+### Optional Fields
+
+| Field | Type | Notes |
+|------|------|------|
+| `lead_time` / `lead-time` | string | Displayed in the task modal |
+| `completed` | date/string | Completion date or label |
+| `github_issue` | number | Linked GitHub issue number |
+| `github_url` | string | Linked GitHub issue URL |
+
+---
+
+## Body Sections
+
+### `## Description`
+
+Required by convention. Free-form markdown text.
+
+### `## Acceptance Criteria`
+
+Optional. Markdown checklist or bullet list.
+
+If empty, Mission Control writes:
+
+```md
+_(empty)_
 ```
 
 ---
@@ -100,39 +89,45 @@ Each task in `kanban/tasks/` is represented as a two-column markdown table:
 |--------|--------|-------|
 | `FEAT-` | 👤 Human | New feature |
 | `FIX-` | 👤 Human | Bug fix |
-| `CHORE-` | 👤 Human | Maintenance, dependency update |
+| `CHORE-` | 👤 Human | Maintenance |
 | `SCOUT-` | 🤖 Agent | Proposal from `@project-scout` |
 | `DONE-` | 🤖 Agent | Historical mapping from `@history-mapper` |
-| `BACKLOG-` | 🤖 Agent | Auto-populated backlog item |
-| `LANG-` | 🤖 Agent | Language enforcement fix |
+| `BACKLOG-` | 🤖 Agent | Auto-generated backlog item |
+| `LANG-` | 🤖 Agent | Language-enforcement task |
 
 ---
 
-## Status Transitions
+## Status Rules
 
-Valid transitions (enforced by agents and optionally by UI):
+Valid statuses:
 
-```
+```text
 BACKLOG → TODO → READY → DOING → TESTING → HUMAN_VALIDATION → DONE
-                              ↓
-                           READY  (if blocked, move back)
 ```
 
-**Guards**:
-- DOING column: maximum 2 tasks. Adding a 3rd is blocked.
-- DONE column: append-only. Tasks in DONE are never modified.
-- Origin field: immutable. Never change from 👤 to 🤖 or vice versa.
+### Guards
+
+- **DOING max = 2 tasks** across the workspace
+- **DONE is append-only** — tasks in `DONE` must not move backward
+- **Origin is immutable**
+
+These rules are enforced by Mission Control server mutations.
 
 ---
 
-## Column Files
+## Manual Creation
 
-| Status | File |
-|--------|------|
-| BACKLOG | `kanban/BACKLOG.md` |
-| TODO | `kanban/TODO.md` |
-| READY | `kanban/READY.md` |
-| DOING | `kanban/DOING.md` |
-| TESTING | `kanban/TESTING.md` |
-| HUMAN_VALIDATION | `kanban/HUMAN_VALIDATION.md` |
-| DONE | `kanban/DONE.md` |
+Tasks can be created in two ways:
+
+1. **UI** — Mission Control `+ New Task`
+2. **Manually** — create the markdown file directly in `kanban/tasks/`
+
+If you create files manually, keep the frontmatter and section names exactly as shown above.
+
+---
+
+## Notes
+
+- Mission Control reads the live file system; there is no secondary kanban database.
+- Comments are stored in `kanban/comments.json`.
+- Metrics for task creation and updates are recorded automatically by the watcher layer.

@@ -21,23 +21,26 @@ allowed-tools:
 ## Step 1 — Read Kanban State
 
 ```bash
-# Count tasks per column
-echo "=== KANBAN HEALTH ==="
-for f in kanban/tasks/*.md; do
-  grep "^status:" "$f" 2>/dev/null
-done | awk -F': ' '{print $2}' | sort | uniq -c | sort -rn
+# Scope to the relevant kanban path first:
+# - service repo: ./kanban/tasks/*.md
+# - workspace repo: ./mission-control/kanban/tasks/*.md
+TASK_GLOB="kanban/tasks/*.md"
+[ -d "mission-control/kanban/tasks" ] && TASK_GLOB="mission-control/kanban/tasks/*.md"
 
-# List DOING tasks
+echo "=== KANBAN HEALTH ==="
+for f in $TASK_GLOB; do
+  grep "^status:" "$f" 2>/dev/null
+done | awk -F': ' '{print toupper($2)}' | sort | uniq -c | sort -rn
+
 echo "=== DOING TASKS ==="
-for f in kanban/tasks/*.md; do
-  if grep -q "status: doing" "$f" 2>/dev/null; then
+for f in $TASK_GLOB; do
+  if grep -Eq "^status: (DOING|doing)$" "$f" 2>/dev/null; then
     echo "- $(grep "^id:" "$f" | cut -d' ' -f2): $(grep "^title:" "$f" | cut -d': ' -f2-)"
   fi
 done
 
-# Count total tasks
 echo "=== TOTAL ==="
-ls kanban/tasks/*.md 2>/dev/null | wc -l
+ls $TASK_GLOB 2>/dev/null | wc -l
 ```
 
 ---
@@ -46,7 +49,7 @@ ls kanban/tasks/*.md 2>/dev/null | wc -l
 
 ```bash
 # List recently completed tasks (sorted by updated date)
-grep -rl "status: done" kanban/tasks/ 2>/dev/null \
+grep -Erl "status: (DONE|done)" kanban/tasks/ mission-control/kanban/tasks/ 2>/dev/null \
   | xargs grep -l "updated:" 2>/dev/null \
   | xargs grep -h "^title:\|^updated:" 2>/dev/null \
   | paste - - | sort -t$'\t' -k2 -r | head -10
@@ -66,9 +69,9 @@ gh run list --limit 5 2>/dev/null || echo "gh CLI not available"
 ## Step 4 — Check Technical Debt Indicators
 
 ```bash
-# TODOs and FIXMEs in code (count only)
+# TODOs and FIXMEs in common code roots (count only)
 echo "=== TECHNICAL DEBT MARKERS ==="
-echo "TODOs: $(grep -rn "TODO\|FIXME\|HACK\|XXX" src/ --include="*.ts" 2>/dev/null | wc -l)"
+echo "TODOs: $(grep -rn "TODO\|FIXME\|HACK\|XXX" src/ app/ server/ demo-backend/src/ demo-frontend/src/ --include="*.ts" --include="*.vue" 2>/dev/null | wc -l)"
 ```
 
 ---

@@ -75,7 +75,7 @@
 
 ---
 
-## Workspace Repos
+## Default Template Repos
 
 | Repo | Role | Regulations |
 |------|------|-------------|

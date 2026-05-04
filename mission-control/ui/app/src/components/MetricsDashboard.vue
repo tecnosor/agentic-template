@@ -283,9 +283,9 @@ const lastUpdatedAgo = computed(() => {
               'bg-violet-900/60 text-violet-300': ev.event_type === 'skill_invoked',
               'bg-amber-900/60 text-amber-300': ev.event_type === 'agent_invoked',
               'bg-blue-900/60 text-blue-300': ev.event_type === 'user_message' || ev.event_type === 'agent_response',
-              'bg-green-900/60 text-green-300': ev.event_type === 'task_update' || ev.event_type === 'task_created',
+              'bg-green-900/60 text-green-300': ev.event_type === 'task_update' || ev.event_type === 'task_created' || ev.event_type === 'task_deleted',
               'bg-indigo-900/60 text-indigo-300': ev.event_type === 'git_commit',
-              'bg-slate-700 text-slate-300': !['skill_invoked','agent_invoked','user_message','agent_response','task_update','task_created','git_commit'].includes(ev.event_type),
+              'bg-slate-700 text-slate-300': !['skill_invoked','agent_invoked','user_message','agent_response','task_update','task_created','task_deleted','git_commit'].includes(ev.event_type),
             }"
           >{{ ev.event_type }}</span>
           <span v-if="ev.skill_name" class="text-violet-300">{{ ev.skill_name }}</span>

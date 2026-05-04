@@ -35,3 +35,13 @@ export interface KanbanTask {
   githubIssueUrl?: string
 }
 
+export interface KanbanTaskDraft {
+  id: string
+  title: string
+  origin: Origin
+  status: KanbanColumn
+  priority: Priority
+  repo: string
+  description: string
+  acceptanceCriteria?: string
+}

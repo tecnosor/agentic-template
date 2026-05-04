@@ -1,9 +1,9 @@
 ---
 id: FEAT-001
 title: Example task — replace with your own
-status: backlog
+status: BACKLOG
 origin: "👤 Human"
-priority: medium
+priority: MEDIUM
 repo: demo-backend
 created: 2025-05-03
 updated: 2025-05-03
@@ -21,4 +21,4 @@ Delete this and add your own tasks in `kanban/tasks/`.
 
 ## Notes
 
-Valid `status` values: `backlog` | `todo` | `ready` | `doing` | `testing` | `human-validation` | `done`
+Valid `status` values: `BACKLOG` | `TODO` | `READY` | `DOING` | `TESTING` | `HUMAN_VALIDATION` | `DONE`

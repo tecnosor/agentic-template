@@ -1,14 +1,24 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useKanbanStore } from './stores/kanbanStore'
 import KanbanBoard from './components/KanbanBoard.vue'
 import FilterBar from './components/FilterBar.vue'
 import MetricsDashboard from './components/MetricsDashboard.vue'
+import TaskCreateModal from './components/TaskCreateModal.vue'
 
 const store = useKanbanStore()
 const activeTab = ref<'kanban' | 'metrics'>('kanban')
+const creatingTask = ref(false)
 
-onMounted(() => store.loadTasks())
+onMounted(() => {
+  void store.loadRepos()
+  void store.loadTasks()
+  store.connectLive()
+})
+
+onUnmounted(() => {
+  store.disconnectLive()
+})
 </script>
 
 <template>
@@ -33,7 +43,7 @@ onMounted(() => store.loadTasks())
             @click="activeTab = 'metrics'"
           >📊 Metrics</button>
         </div>
-        <FilterBar v-if="activeTab === 'kanban'" />
+        <FilterBar v-if="activeTab === 'kanban'" @create-task="creatingTask = true" />
       </div>
     </header>
 
@@ -57,5 +67,11 @@ onMounted(() => store.loadTasks())
     <template v-else>
       <MetricsDashboard />
     </template>
+
+    <TaskCreateModal
+      v-if="creatingTask"
+      @close="creatingTask = false"
+      @created="creatingTask = false"
+    />
   </div>
 </template>

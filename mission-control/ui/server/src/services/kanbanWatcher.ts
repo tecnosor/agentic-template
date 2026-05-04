@@ -17,23 +17,38 @@ function statusFromContent(content: string): string {
 }
 
 export function startKanbanWatcher(): void {
-  const patterns = REPOS.map(repo =>
-    resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks', '**/*.md'),
+  const taskDirectories = REPOS.map(repo =>
+    resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks'),
   )
 
-  const watcher = chokidar.watch(patterns, {
+  const watcher = chokidar.watch(taskDirectories, {
     persistent: true,
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
+    ignored: (filePath, stats) => Boolean(stats?.isFile() && !filePath.endsWith('.md')),
   })
 
-  const handle = (ev: 'add' | 'change', filePath: string): void => {
+  const handle = (ev: 'add' | 'change' | 'unlink', filePath: string): void => {
     try {
-      const content = readFileSync(filePath, 'utf8')
       const filename = filePath.split('/').pop() ?? filePath
       const taskId = taskIdFromFilename(filename)
-      const taskStatus = statusFromContent(content)
       const repo = REPOS.find(r => filePath.includes(`/${r}/`)) ?? 'workspace'
+
+      if (ev === 'unlink') {
+        insertEvent({
+          session_id: 'kanban-watcher',
+          timestamp: new Date().toISOString(),
+          event_type: 'task_deleted',
+          workspace: repo,
+          task_id: taskId,
+          status: 'success',
+          metadata: JSON.stringify({ source: 'kanban-watcher' }),
+        })
+        return
+      }
+
+      const content = readFileSync(filePath, 'utf8')
+      const taskStatus = statusFromContent(content)
 
       insertEvent({
         session_id: 'kanban-watcher',
@@ -51,6 +66,7 @@ export function startKanbanWatcher(): void {
 
   watcher.on('add', (p: string) => handle('add', p))
   watcher.on('change', (p: string) => handle('change', p))
+  watcher.on('unlink', (p: string) => handle('unlink', p))
 
   console.info(`[kanban-watcher] Watching ${REPOS.length} repos for task changes`)
 }

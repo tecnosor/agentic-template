@@ -30,7 +30,7 @@ Does NOT write code, modify kanban, or execute tasks.
 ```bash
 curl -s http://localhost:3099/api/metrics/summary | head -c 200
 ```
-If not reachable, instruct user to start server: `cd mission-control/ui && npm run dev:server`
+If not reachable, instruct user to start the default local server: `cd mission-control/ui && npm run dev:server`
 
 ### 2. Fetch all stats in parallel
 ```bash
