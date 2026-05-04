@@ -24,9 +24,9 @@ allowed-tools:
 ```
 kanban/
 └── tasks/
-    ├── FEAT-001.md     (status: ready)
-    ├── FEAT-002.md     (status: doing)
-    ├── FIX-003.md      (status: testing)
+    ├── FEAT-001.md     (status: READY)
+    ├── FEAT-002.md     (status: DOING)
+    ├── FIX-003.md      (status: TESTING)
     └── .gitkeep
 ```
 
@@ -38,9 +38,9 @@ kanban/
 ---
 id: FEAT-042
 title: Add user onboarding flow
-status: ready
+status: READY
 origin: "👤 Human"
-priority: high
+priority: HIGH
 repo: demo-backend
 created: 2025-01-15
 updated: 2025-01-20
@@ -62,13 +62,13 @@ Implement the complete user onboarding flow with email verification.
 
 | Status | Meaning |
 |--------|---------|
-| `backlog` | Discovered, not yet prioritized |
-| `todo` | Prioritized for upcoming work |
-| `ready` | Estimated and ready to start |
-| `doing` | Actively being worked on (**MAX 2**) |
-| `testing` | Implementation done, tests running |
-| `human-validation` | Awaiting stakeholder approval |
-| `done` | Completed and merged |
+| `BACKLOG` | Discovered, not yet prioritized |
+| `TODO` | Prioritized for upcoming work |
+| `READY` | Estimated and ready to start |
+| `DOING` | Actively being worked on (**MAX 2**) |
+| `TESTING` | Implementation done, tests running |
+| `HUMAN_VALIDATION` | Awaiting stakeholder approval |
+| `DONE` | Completed and merged |
 
 ---
 
@@ -90,31 +90,31 @@ Implement the complete user onboarding flow with email verification.
 
 ## DOING Limit — MAX 2 Tasks
 
-Before moving any task to `doing`:
+Before moving any task to `DOING`:
 
 ```bash
-grep -rl "status: doing" kanban/tasks/ 2>/dev/null | wc -l
+grep -rl "status: DOING" kanban/tasks/ 2>/dev/null | wc -l
 ```
 
-If count is 2: **STOP. Finish or move a doing task before starting a new one.**
+If count is 2: **STOP. Finish or move a DOING task before starting a new one.**
 
 ---
 
 ## Workflow Transitions
 
 ```
-backlog → todo → ready → doing → testing → human-validation → done
+BACKLOG → TODO → READY → DOING → TESTING → HUMAN_VALIDATION → DONE
 ```
 
 | Trigger | Status change |
 |---------|---------------|
-| Prioritized for next sprint | `backlog` → `todo` |
-| Estimated and refined | `todo` → `ready` |
-| Work started | `ready` → `doing` |
-| Implementation complete | `doing` → `testing` |
-| Tests passed, build green | `testing` → `human-validation` |
-| Stakeholder approved | `human-validation` → `done` |
-| PR merged (automated) | `doing`/`testing` → `done` |
+| Prioritized for next sprint | `BACKLOG` → `TODO` |
+| Estimated and refined | `TODO` → `READY` |
+| Work started | `READY` → `DOING` |
+| Implementation complete | `DOING` → `TESTING` |
+| Tests passed, build green | `TESTING` → `HUMAN_VALIDATION` |
+| Stakeholder approved | `HUMAN_VALIDATION` → `DONE` |
+| PR merged (automated) | `DOING`/`TESTING` → `DONE` |
 
 ---
 
@@ -131,9 +131,9 @@ cat > kanban/tasks/FEAT-043.md << 'EOF'
 ---
 id: FEAT-043
 title: Add password reset flow
-status: backlog
+status: BACKLOG
 origin: "👤 Human"
-priority: medium
+priority: MEDIUM
 repo: demo-backend
 created: 2025-01-20
 updated: 2025-01-20
@@ -155,8 +155,8 @@ EOF
 2. Update `updated:` date
 
 ```bash
-# Move FEAT-043 from backlog → ready (macOS sed)
-sed -i '' 's/^status: backlog/status: ready/' kanban/tasks/FEAT-043.md
+# Move FEAT-043 from BACKLOG → READY (macOS sed)
+sed -i '' 's/^status: BACKLOG/status: READY/' kanban/tasks/FEAT-043.md
 sed -i '' "s/^updated: .*/updated: $(date +%Y-%m-%d)/" kanban/tasks/FEAT-043.md
 ```
 
@@ -172,24 +172,24 @@ grep -h "^status:" kanban/tasks/*.md 2>/dev/null \
   | awk -F': ' '{print $2}' | sort | uniq -c | sort -rn
 
 echo "DOING tasks:"
-grep -rl "^status: doing" kanban/tasks/ 2>/dev/null
+grep -rl "^status: DOING" kanban/tasks/ 2>/dev/null
 ```
 
 Expected health indicators:
-- `doing`: ≤ 2
-- `testing`: ≤ 3
-- No task stuck in `doing` for > 5 days
+- `DOING`: ≤ 2
+- `TESTING`: ≤ 3
+- No task stuck in `DOING` for > 5 days
 
 ---
 
 ## Query Examples
 
 ```bash
-# All ready tasks
-grep -rl "status: ready" kanban/tasks/
+# All READY tasks
+grep -rl "status: READY" kanban/tasks/
 
-# Doing tasks with titles
-grep -rl "status: doing" kanban/tasks/ | xargs grep "^title:" 2>/dev/null
+# DOING tasks with titles
+grep -rl "status: DOING" kanban/tasks/ | xargs grep "^title:" 2>/dev/null
 
 # Tasks for a specific repo
 grep -rl "repo: demo-backend" kanban/tasks/

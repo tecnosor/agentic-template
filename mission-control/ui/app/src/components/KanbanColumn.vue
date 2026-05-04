@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import type { KanbanColumn, KanbanTask } from '../types/kanban'
 import { COLUMN_LABELS, COLUMN_CONFIG } from '../types/kanban'
 import KanbanCard from './KanbanCard.vue'
+import { useKanbanStore } from '../stores/kanbanStore'
 
 const props = defineProps<{
   column: KanbanColumn
@@ -13,18 +14,65 @@ const emit = defineEmits<{
   (e: 'card-click', task: KanbanTask): void
 }>()
 
+const store = useKanbanStore()
 const config = computed(() => COLUMN_CONFIG[props.column])
 const label = computed(() => COLUMN_LABELS[props.column])
 const isDoing = computed(() => props.column === 'DOING')
 const isOverLimit = computed(() => isDoing.value && props.tasks.length > 2)
+const isDragOver = ref(false)
+let dragDepth = 0
+
+function onDragOver(event: DragEvent) {
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+}
+
+function onDragEnter() {
+  dragDepth++
+  isDragOver.value = true
+}
+
+function onDragLeave() {
+  dragDepth--
+  if (dragDepth <= 0) {
+    dragDepth = 0
+    isDragOver.value = false
+  }
+}
+
+function onDrop(event: DragEvent) {
+  event.preventDefault()
+  isDragOver.value = false
+  dragDepth = 0
+
+  const raw =
+    event.dataTransfer?.getData('application/json') ||
+    event.dataTransfer?.getData('text/plain')
+  if (!raw) return
+
+  try {
+    const { id, repo } = JSON.parse(raw) as { id: string; repo: string }
+    void store.moveTask(id, repo, props.column)
+  } catch {
+    // ignore malformed drag payload
+  }
+}
 </script>
 
 <template>
   <div class="w-64 flex-shrink-0 flex flex-col">
     <!-- Column container with top border -->
     <div
-      class="flex-1 rounded-lg border-t-4 border border-slate-800 bg-slate-900 flex flex-col"
-      :class="[config.topColor, isOverLimit ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-slate-950' : '']"
+      class="flex-1 rounded-lg border-t-4 border border-slate-800 bg-slate-900 flex flex-col transition-colors"
+      :class="[
+        config.topColor,
+        isOverLimit ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-slate-950' : '',
+        isDragOver ? 'bg-slate-800 ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-950' : '',
+      ]"
+      @dragover="onDragOver"
+      @dragenter="onDragEnter"
+      @dragleave="onDragLeave"
+      @drop="onDrop"
     >
       <!-- Header -->
       <div class="px-3 py-2.5 border-b border-slate-800">
@@ -54,9 +102,10 @@ const isOverLimit = computed(() => isDoing.value && props.tasks.length > 2)
         />
         <div
           v-if="tasks.length === 0"
-          class="flex items-center justify-center h-14 text-slate-600 text-xs italic"
+          class="flex items-center justify-center h-14 text-xs italic transition-colors"
+          :class="isDragOver ? 'text-blue-400' : 'text-slate-600'"
         >
-          — empty —
+          {{ isDragOver ? 'Drop here' : '— empty —' }}
         </div>
       </div>
     </div>

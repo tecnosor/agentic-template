@@ -55,6 +55,7 @@ export interface IssueRef {
 
 export async function createIssue(task: KanbanTask): Promise<IssueRef> {
   if (!GITHUB_TOKEN) throw new Error('GITHUB_TOKEN not set')
+  if (!GITHUB_ORG) throw new Error('GITHUB_ORG not set')
   const repoName = getGitHubRepoName(task.repo)
 
   const response = await octokit.rest.issues.create({

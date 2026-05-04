@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/tsx/dist/cli.mjs watch src/index.ts",
-    "start": "node ./node_modules/tsx/dist/cli.mjs src/index.ts"
+    "start": "node ./node_modules/tsx/dist/cli.mjs src/index.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@octokit/rest": "^21.0.2",

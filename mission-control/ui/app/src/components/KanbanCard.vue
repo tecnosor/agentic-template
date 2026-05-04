@@ -13,12 +13,21 @@ const emit = defineEmits<{
 }>()
 
 const priorityCfg = computed(() => PRIORITY_CONFIG[props.task.priority])
+
+function onDragStart(event: DragEvent) {
+  const payload = JSON.stringify({ id: props.task.id, repo: props.task.repo })
+  event.dataTransfer?.setData('application/json', payload)
+  event.dataTransfer?.setData('text/plain', payload)
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+}
 </script>
 
 <template>
   <div
-    class="rounded border border-slate-700 bg-slate-800 p-2.5 flex flex-col gap-1.5 hover:border-slate-500 transition-colors cursor-pointer"
+    draggable="true"
+    class="rounded border border-slate-700 bg-slate-800 p-2.5 flex flex-col gap-1.5 hover:border-slate-500 transition-colors cursor-grab active:cursor-grabbing"
     :class="{ 'opacity-70': readOnly }"
+    @dragstart="onDragStart"
     @click="emit('click', task)"
   >
     <!-- ID + Priority row -->
