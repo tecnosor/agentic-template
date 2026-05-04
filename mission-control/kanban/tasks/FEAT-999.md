@@ -1,7 +1,7 @@
 ---
 id: FEAT-999
 title: "test"
-status: TODO
+status: READY
 origin: "👤 Human"
 priority: MEDIUM
 repo: mission-control
