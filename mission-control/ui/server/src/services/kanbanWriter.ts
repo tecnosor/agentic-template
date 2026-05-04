@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
-import { WORKSPACE_ROOT } from '../config.js'
+import { WORKSPACE_ROOT, REPOS } from '../config.js'
 import type { KanbanColumn, KanbanComment, KanbanTaskDraft } from '../types/kanban.js'
 
 // ── Comments sidecar (kanban/comments.json) ───────────────────────────────────
@@ -41,10 +41,24 @@ export function addComment(repo: string, taskId: string, comment: KanbanComment)
  * Tasks live at kanban/tasks/{taskId}.md.
  */
 export function moveTask(repo: string, taskId: string, targetColumn: KanbanColumn): string {
-  const filePath = getTaskFilePath(repo, taskId)
+  let filePath = getTaskFilePath(repo, taskId)
+
+  // Fallback: if task isn't in the given repo dir, search all discovered repos.
+  // This handles the case where the task YAML `repo:` field differs from its
+  // filesystem directory (e.g., agent wrote to demo-backend/ but set repo: my-project).
+  if (!existsSync(filePath)) {
+    for (const r of REPOS) {
+      if (r === repo) continue
+      const alt = getTaskFilePath(r, taskId)
+      if (existsSync(alt)) {
+        filePath = alt
+        break
+      }
+    }
+  }
 
   if (!existsSync(filePath)) {
-    throw new Error(`Task ${taskId} not found: ${filePath}`)
+    throw new Error(`Task ${taskId} not found in any repo (looked in ${repo} and ${REPOS.length} discovered repos)`)
   }
 
   const content = readFileSync(filePath, 'utf-8')

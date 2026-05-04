@@ -4,7 +4,6 @@ import type { KanbanColumn, KanbanTaskDraft, Origin, Priority } from '../types/k
 import { moveTask, addComment, createTask } from '../services/kanbanWriter.js'
 import { commitAndPush } from '../services/gitService.js'
 import { countTasksInColumn, readTaskById } from '../services/kanbanReader.js'
-import { REPOS } from '../config.js'
 
 const router = Router()
 
@@ -66,8 +65,9 @@ router.post('/tasks/create', async (req: Request<object, object, KanbanTaskDraft
     res.status(400).json({ error: 'Task ID must match FEAT-/FIX-/CHORE-/SCOUT-/DONE-/BACKLOG-/LANG- followed by at least 3 digits' })
     return
   }
-  if (!REPOS.includes(body.repo as (typeof REPOS)[number])) {
-    res.status(400).json({ error: `repo must be one of: ${REPOS.join(', ')}` })
+  // Validate repo is a safe directory name (no path traversal)
+  if (!body.repo || !/^[a-zA-Z0-9_-]+$/.test(body.repo)) {
+    res.status(400).json({ error: 'repo must be a valid directory name (letters, numbers, dashes, underscores)' })
     return
   }
   if (!VALID_ORIGINS.includes(body.origin)) {

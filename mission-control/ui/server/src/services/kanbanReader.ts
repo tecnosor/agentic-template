@@ -4,8 +4,6 @@ import { WORKSPACE_ROOT, REPOS } from '../config.js'
 import type { KanbanTask, KanbanColumn, Priority, Origin } from '../types/kanban.js'
 import { getCommentsForTask } from './kanbanWriter.js'
 
-// ── Normalisation helpers ─────────────────────────────────────────────────────
-
 function normalizeOrigin(raw = ''): Origin {
   const lower = raw.toLowerCase().trim()
   if (lower === 'agent' || raw.includes('🤖')) return '🤖 Agent'
@@ -92,6 +90,26 @@ function extractBodySections(body: string): {
   return { description, acceptanceCriteria }
 }
 
+// ── Task location helper (searches all repos as fallback) ────────────────────
+
+/**
+ * Resolve the physical file path for a task.
+ * Tries `{WORKSPACE_ROOT}/{repo}/kanban/tasks/{taskId}.md` first,
+ * then falls back to scanning all discovered repos so that tasks whose
+ * YAML `repo:` field differs from their filesystem directory are still found.
+ */
+function resolveTaskPath(repo: string, taskId: string): { filePath: string; fsRepo: string } | null {
+  const primary = resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks', `${taskId}.md`)
+  if (existsSync(primary)) return { filePath: primary, fsRepo: repo }
+
+  for (const r of REPOS) {
+    if (r === repo) continue
+    const alt = resolve(WORKSPACE_ROOT, r, 'kanban', 'tasks', `${taskId}.md`)
+    if (existsSync(alt)) return { filePath: alt, fsRepo: r }
+  }
+  return null
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function readTaskFile(filePath: string, repo: string): KanbanTask | null {
@@ -159,18 +177,20 @@ export function readTaskById(
   repo: string,
   taskId: string,
 ): (KanbanTask & { comments: import('../types/kanban.js').KanbanComment[] }) | null {
-  const filePath = resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks', `${taskId}.md`)
-  const task = readTaskFile(filePath, repo)
+  const found = resolveTaskPath(repo, taskId)
+  if (!found) return null
+  const task = readTaskFile(found.filePath, found.fsRepo)
   if (!task) return null
-  return { ...task, comments: getCommentsForTask(repo, taskId) }
+  return { ...task, comments: getCommentsForTask(found.fsRepo, taskId) }
 }
 
 export function findTaskLocation(
   repo: string,
   taskId: string,
 ): { column: KanbanColumn; filename: string } | null {
-  const filePath = resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks', `${taskId}.md`)
-  const task = readTaskFile(filePath, repo)
+  const found = resolveTaskPath(repo, taskId)
+  if (!found) return null
+  const task = readTaskFile(found.filePath, found.fsRepo)
   if (!task) return null
   return { column: task.status, filename: `tasks/${taskId}.md` }
 }

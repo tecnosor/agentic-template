@@ -1,20 +1,35 @@
-import { resolve, dirname } from 'path'
+import { resolve, dirname, join } from 'path'
 import { fileURLToPath } from 'url'
+import { readdirSync, existsSync } from 'fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// server/src → server → ui → mission-control → Github
-export const WORKSPACE_ROOT = resolve(__dirname, '../../../../')
+// Allow explicit override via WORKSPACE_ROOT env var.
+// Default: 4 levels up from server/src/ → mission-control/ui/server/src → workspace root.
+export const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT
+  ? resolve(process.env.WORKSPACE_ROOT)
+  : resolve(__dirname, '../../../../')
 
-// List your workspace repositories here (folder names relative to WORKSPACE_ROOT).
-// Add or remove repos to match your actual project structure.
-export const REPOS = [
-  'demo-backend',
-  'demo-frontend',
-  'mission-control',
-] as const
+// Auto-discover repos: any top-level directory that has kanban/tasks/ inside.
+// You can still override with REPOS env var (comma-separated): REPOS=my-api,my-frontend
+function discoverRepos(): string[] {
+  if (process.env.REPOS) {
+    return process.env.REPOS.split(',').map(r => r.trim()).filter(Boolean)
+  }
+  try {
+    const entries = readdirSync(WORKSPACE_ROOT, { withFileTypes: true })
+    return entries
+      .filter(e => e.isDirectory() && existsSync(join(WORKSPACE_ROOT, e.name, 'kanban', 'tasks')))
+      .map(e => e.name)
+      .sort()
+  } catch {
+    return []
+  }
+}
 
-export type RepoName = (typeof REPOS)[number]
+export const REPOS: string[] = discoverRepos()
+
+export type RepoName = string
 
 // Set GITHUB_ORG in your .env file to enable GitHub integrations.
 export const GITHUB_ORG = process.env.GITHUB_ORG ?? ''

@@ -77,6 +77,24 @@ const lastUpdatedAgo = computed(() => {
       ⚠️ {{ store.error }} — Is the server running on port 3099?
     </div>
 
+    <!-- Empty state — no data yet -->
+    <div
+      v-else-if="!store.loading && !store.summary"
+      class="bg-slate-900 border border-slate-800 rounded-lg p-8 text-center space-y-4"
+    >
+      <p class="text-4xl">📭</p>
+      <p class="text-slate-300 font-medium">No metrics recorded yet</p>
+      <p class="text-slate-500 text-sm max-w-md mx-auto leading-relaxed">
+        Metrics are collected as agents work. They populate automatically when skills run,
+        tasks change, or sessions start. Nothing to do — just start using the workspace.
+      </p>
+      <div class="bg-slate-800 rounded p-3 text-xs text-slate-400 text-left font-mono max-w-sm mx-auto">
+        <p class="text-slate-500 mb-1"># Record an event manually:</p>
+        <p>node .opencode/hooks/metrics-reporter.js \</p>
+        <p>&nbsp;&nbsp;session_start '&#123;"model":"claude-sonnet-4"&#125;'</p>
+      </div>
+    </div>
+
     <!-- Summary cards -->
     <div
       v-if="store.summary"

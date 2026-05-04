@@ -1,6 +1,6 @@
 import express from 'express'
 import cors from 'cors'
-import { PORT } from './config.js'
+import { PORT, WORKSPACE_ROOT, REPOS } from './config.js'
 import tasksRouter from './routes/tasks.js'
 import mutationsRouter from './routes/mutations.js'
 import githubRouter from './routes/github.js'
@@ -30,7 +30,15 @@ app.use((_req, res) => {
 })
 
 const server = app.listen(PORT, () => {
-  console.info(`Kanban API server running at http://localhost:${PORT}`)
+  console.info(`\n┌─ Mission Control API ────────────────────────────────┐`)
+  console.info(`│  URL            http://localhost:${PORT}              │`)
+  console.info(`│  Workspace      ${WORKSPACE_ROOT.slice(-44).padEnd(44)} │`)
+  console.info(`│  Repos (${String(REPOS.length).padStart(2)})     ${(REPOS.join(', ') || '(none)').slice(0, 44).padEnd(44)} │`)
+  if (REPOS.length === 0) {
+    console.warn(`│  ⚠ No repos found. Set WORKSPACE_ROOT env var or    │`)
+    console.warn(`│    ensure repos have a kanban/tasks/ directory.      │`)
+  }
+  console.info(`└──────────────────────────────────────────────────────┘\n`)
 
   // Start background collectors
   startKanbanWatcher()
