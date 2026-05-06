@@ -38,7 +38,9 @@ curl -s -X POST http://localhost:3099/api/metrics/sessions \
   }" || true
 ```
 
-Store `$SESSION_ID`. After each skill/agent invocation, POST a `skill_invoked` or `agent_invoked` event. At session end, PATCH with `ended_at`. See `mission-control/skills/metrics/SKILL.md` for the full API.
+Store `$SESSION_ID`. After each skill/agent invocation, POST a `skill_invoked` or `agent_invoked` event.
+Node.js alternative: `node .opencode/utils/metrics-reporter.js skill_invoked '{"skill_name":"<name>"}'`
+See `mission-control/skills/metrics/SKILL.md` for the full API.
 
 ---
 

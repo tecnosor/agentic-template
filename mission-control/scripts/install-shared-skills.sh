@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 # install-shared-skills.sh
-# Copies shared skills from mission-control/skills/ into .opencode/skills/
-# Safe to run multiple times (idempotent).
+# Installs shared skills from mission-control/skills/ into .opencode/skills/.
+#
+# Strategy (in order):
+#   1. Symlink (preferred) — .opencode/skills → ../mission-control/skills
+#      Zero maintenance: always in sync, no drift possible.
+#   2. Copy fallback — used on Windows/Docker/NFS where symlinks aren't supported.
+#      Pass --copy to force copy mode.
+#
+# Usage:
+#   ./install-shared-skills.sh          # symlink (default)
+#   ./install-shared-skills.sh --copy   # force copy instead of symlink
 
 set -euo pipefail
 
@@ -14,6 +23,12 @@ RESET='\033[0m'
 ok()   { echo -e "${GREEN}✅  $*${RESET}"; }
 warn() { echo -e "${YELLOW}⚠️  $*${RESET}"; }
 err()  { echo -e "${RED}❌  $*${RESET}" >&2; }
+
+# ── Args ──────────────────────────────────────────────────────────────────────
+FORCE_COPY=false
+for arg in "$@"; do
+  [[ "$arg" == "--copy" ]] && FORCE_COPY=true
+done
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,9 +43,37 @@ if [[ ! -d "${SKILLS_SRC}" ]]; then
   exit 1
 fi
 
+# ── Strategy 1: Symlink ───────────────────────────────────────────────────────
+if [[ "$FORCE_COPY" == false ]]; then
+  # Remove existing directory or broken symlink, create fresh symlink
+  if [[ -L "${SKILLS_DST}" ]]; then
+    ok "Symlink already in place: ${SKILLS_DST} → $(readlink "${SKILLS_DST}")"
+    exit 0
+  fi
+
+  if [[ -d "${SKILLS_DST}" ]]; then
+    warn "Physical copy found at ${SKILLS_DST} — replacing with symlink"
+    rm -rf "${SKILLS_DST}"
+  fi
+
+  # Compute relative path from .opencode/ to mission-control/skills
+  ln -s "../mission-control/skills" "${SKILLS_DST}"
+  ok "Symlink created: ${SKILLS_DST} → ../mission-control/skills"
+  ok "Skills are now always in sync — no manual updates needed."
+  exit 0
+fi
+
+# ── Strategy 2: Copy fallback (--copy mode) ───────────────────────────────────
+warn "Running in --copy mode (symlinks disabled)"
+warn "You must re-run this script whenever mission-control/skills/ changes."
+
+if [[ -L "${SKILLS_DST}" ]]; then
+  warn "Removing symlink to replace with physical copies"
+  rm "${SKILLS_DST}"
+fi
+
 mkdir -p "${SKILLS_DST}"
 
-# ── Copy skills ───────────────────────────────────────────────────────────────
 COPIED=0
 SKIPPED=0
 
@@ -48,7 +91,6 @@ for skill_dir in "${SKILLS_SRC}"/*/; do
   mkdir -p "${target_dir}"
 
   if [[ -f "${target_file}" ]]; then
-    # Overwrite only if source is newer
     if [[ "${skill_file}" -nt "${target_file}" ]]; then
       cp "${skill_file}" "${target_file}"
       ok "Updated ${skill_name}"

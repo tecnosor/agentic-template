@@ -68,7 +68,7 @@
 ## Kanban Discipline
 
 - **One file per task** — tasks live in `kanban/tasks/{ID}.md` with a `status:` YAML field
-- **Maximum 2 tasks with `status: doing`** — finish before starting new ones
+- **Unlimited parallel DOING tasks** — no artificial cap on concurrent work
 - Changing status = editing the `status:` field in the task file (no files to move)
 - Task ID prefixes:
   - Human tasks: `FEAT-NNN`, `FIX-NNN`, `CHORE-NNN`
@@ -122,9 +122,47 @@ Agents never need Langfuse credentials — just POST to `http://localhost:3099/a
 |----|-----|
 | Mission Control UI | http://localhost:3098 |
 | Mission Control API | http://localhost:3099 |
-| Langfuse (self-hosted) | http://localhost:3000 |
+| Langfuse (self-hosted) | http://localhost:3001 |
 
 See `README.md` for setup options (Cloud vs self-hosted docker).
+
+---
+
+## Metrics Instrumentation (Mandatory for All Agents)
+
+Every agent conversation **must** register a session with Mission Control.
+This applies to all agents: GitHub Copilot, OpenCode, Claude Code, IBM Bob, and any other AI agent.
+
+> **Non-blocking rule**: if `http://localhost:3099` is unreachable, skip silently. Never block real work.
+
+### Lifecycle
+
+| Step | When | Action |
+|------|------|--------|
+| Session start | First turn of any conversation | `POST /api/metrics/sessions` |
+| Skill invoked | Any skill activated | `POST /api/metrics/events` (`skill_invoked`) |
+| Agent invoked | Any sub-agent called | `POST /api/metrics/events` (`agent_invoked`) |
+| Session end | Last turn or best effort | `PATCH /api/metrics/sessions/<id>` |
+
+```bash
+# Session start
+SESSION_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
+curl -s -X POST http://localhost:3099/api/metrics/sessions \
+  -H "Content-Type: application/json" \
+  -d "{\"id\": \"$SESSION_ID\", \"started_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"workspace\": \"template\", \"model\": \"<model>\"}" || true
+
+# Skill/agent event
+curl -s -X POST http://localhost:3099/api/metrics/events \
+  -H "Content-Type: application/json" \
+  -d "{\"session_id\": \"$SESSION_ID\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"event_type\": \"skill_invoked\", \"skill_name\": \"<skill>\", \"workspace\": \"template\", \"model\": \"<model>\", \"tokens_input\": <n>, \"tokens_output\": <n>, \"status\": \"success\"}" || true
+
+# Session end
+curl -s -X PATCH http://localhost:3099/api/metrics/sessions/$SESSION_ID \
+  -H "Content-Type: application/json" \
+  -d "{\"ended_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" || true
+```
+
+Token estimation: `tokens = floor(text.length / 4)`. Full API: `skills/metrics/SKILL.md`
 
 ---
 

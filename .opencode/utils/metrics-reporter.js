@@ -6,13 +6,13 @@
  * Called by OpenCode agents via bash tool to record activity.
  *
  * Usage:
- *   node .opencode/hooks/metrics-reporter.js <event-type> [options-json]
+ *   node .opencode/utils/metrics-reporter.js <event-type> [options-json]
  *
  * Examples:
- *   node .opencode/hooks/metrics-reporter.js skill_invoked '{"skill_name":"code-review","tokens_input":1200}'
- *   node .opencode/hooks/metrics-reporter.js agent_invoked '{"agent_name":"builder","tokens_input":800}'
- *   node .opencode/hooks/metrics-reporter.js session_start '{"model":"claude-sonnet-4-5","workspace":"my-service"}'
- *   node .opencode/hooks/metrics-reporter.js task_update   '{"task_id":"FEAT-001","status":"done"}'
+ *   node .opencode/utils/metrics-reporter.js skill_invoked '{"skill_name":"code-review","tokens_input":1200}'
+ *   node .opencode/utils/metrics-reporter.js agent_invoked '{"agent_name":"builder","tokens_input":800}'
+ *   node .opencode/utils/metrics-reporter.js session_start '{"model":"claude-sonnet-4-5","workspace":"my-service"}'
+ *   node .opencode/utils/metrics-reporter.js task_update   '{"task_id":"FEAT-001","status":"done"}'
  *
  * Environment variables:
  *   METRICS_HOST     — default: localhost
