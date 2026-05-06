@@ -5,6 +5,7 @@ import tasksRouter from './routes/tasks.js'
 import mutationsRouter from './routes/mutations.js'
 import githubRouter from './routes/github.js'
 import metricsRouter from './routes/metrics.js'
+import orchestrateRouter from './routes/orchestrate.js'
 import { startKanbanWatcher } from './services/kanbanWatcher.js'
 import { startGitPoller } from './services/gitPoller.js'
 import { getLangfuseClient, flushLangfuse } from './services/langfuseService.js'
@@ -24,6 +25,7 @@ app.use('/api', tasksRouter)
 app.use('/api', mutationsRouter)
 app.use('/api', githubRouter)
 app.use('/api', metricsRouter)
+app.use('/api', orchestrateRouter)
 
 // 404 handler
 app.use((_req, res) => {

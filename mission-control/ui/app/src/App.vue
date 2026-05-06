@@ -5,10 +5,24 @@ import KanbanBoard from './components/KanbanBoard.vue'
 import FilterBar from './components/FilterBar.vue'
 import MetricsDashboard from './components/MetricsDashboard.vue'
 import TaskCreateModal from './components/TaskCreateModal.vue'
+import AgentActivityFeed from './components/AgentActivityFeed.vue'
 
 const store = useKanbanStore()
-const activeTab = ref<'kanban' | 'metrics' | 'traces'>('kanban')
+const activeTab = ref<'kanban' | 'metrics' | 'traces' | 'inbox'>('kanban')
 const creatingTask = ref(false)
+const inboxPending = ref(0)
+
+async function loadInboxSummary() {
+  try {
+    const res = await fetch('/api/orchestrate/summary')
+    if (res.ok) {
+      const data = await res.json() as { pending: number }
+      inboxPending.value = data.pending
+    }
+  } catch {
+    // non-blocking
+  }
+}
 
 // Langfuse config fetched from the Mission Control server
 const langfuseUrl = ref<string | null>(null)
@@ -32,6 +46,10 @@ onMounted(() => {
   void store.loadTasks()
   store.connectLive()
   void loadLangfuseConfig()
+  void loadInboxSummary()
+  // Refresh inbox count every 30s
+  const inboxTimer = setInterval(() => { void loadInboxSummary() }, 30_000)
+  onUnmounted(() => clearInterval(inboxTimer))
 })
 
 onUnmounted(() => {
@@ -65,6 +83,17 @@ onUnmounted(() => {
             :class="activeTab === 'traces' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'"
             @click="activeTab = 'traces'"
           >🔍 Traces</button>
+          <button
+            class="relative px-3 py-1.5 text-xs rounded transition font-medium"
+            :class="activeTab === 'inbox' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'"
+            @click="activeTab = 'inbox'; void loadInboxSummary()"
+          >
+            📥 Inbox
+            <span
+              v-if="inboxPending > 0"
+              class="absolute -top-1 -right-1 bg-amber-500 text-slate-950 text-[9px] font-bold rounded-full px-1 min-w-[16px] text-center"
+            >{{ inboxPending }}</span>
+          </button>
         </div>
         <FilterBar v-if="activeTab === 'kanban'" @create-task="creatingTask = true" />
       </div>
@@ -89,7 +118,7 @@ onUnmounted(() => {
     </template>
 
     <!-- Traces tab — Langfuse full UI or setup instructions -->
-    <template v-else>
+    <template v-else-if="activeTab === 'traces'">
       <div class="p-6 space-y-4">
         <div class="flex items-center gap-3">
           <h2 class="text-lg font-semibold text-white">🔍 Langfuse Traces</h2>
@@ -164,10 +193,51 @@ onUnmounted(() => {
       </div>
     </template>
 
+    <!-- Agent Inbox tab -->
+    <template v-else>
+      <div class="p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold text-white">📥 Agent Inbox</h2>
+          <span
+            v-if="inboxPending > 0"
+            class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-900/60 text-amber-400 border border-amber-800/50"
+          >{{ inboxPending }} PENDING</span>
+          <span
+            v-else
+            class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-500 border border-slate-700"
+          >IDLE</span>
+        </div>
+        <p class="text-slate-400 text-sm max-w-2xl">
+          Jobs are created automatically when a task reaches <strong>READY</strong> status.
+          AI tools (Claude Code, OpenCode, GitHub Copilot) check <code class="bg-slate-800 px-1 rounded">agent-inbox/pending/</code>
+          at session start and execute them.
+        </p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-xl">
+          <div class="bg-slate-900 border border-amber-800/40 rounded-lg p-3 text-center">
+            <p class="text-2xl font-bold text-amber-400">{{ inboxPending }}</p>
+            <p class="text-xs text-slate-400 mt-1">Pending</p>
+          </div>
+        </div>
+        <div class="max-w-2xl space-y-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Manual trigger</p>
+          <p class="text-xs text-slate-400">
+            Move any task to <strong>READY</strong> via the kanban board to trigger auto-orchestration,
+            or call the API directly:
+          </p>
+          <pre class="bg-slate-900 border border-slate-800 rounded p-3 text-xs text-slate-300 overflow-x-auto">curl -s -X POST http://localhost:3099/api/orchestrate/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"taskId": "FEAT-001", "repo": "mission-control"}'</pre>
+        </div>
+      </div>
+    </template>
+
     <TaskCreateModal
       v-if="creatingTask"
       @close="creatingTask = false"
       @created="creatingTask = false"
     />
+
+    <!-- Agent activity toast feed (always visible) -->
+    <AgentActivityFeed />
   </div>
 </template>

@@ -3,6 +3,7 @@ import { resolve } from 'path'
 import { readFileSync } from 'fs'
 import { WORKSPACE_ROOT, REPOS } from '../config.js'
 import { insertEvent } from './metricsService.js'
+import { handleReadyTask } from './orchestratorService.js'
 
 function taskIdFromFilename(filename: string): string {
   return filename.replace(/\.md$/i, '')
@@ -59,6 +60,14 @@ export function startKanbanWatcher(): void {
         status: 'success',
         metadata: JSON.stringify({ source: 'kanban-watcher', task_status: taskStatus }),
       })
+
+      // Auto-orchestration: trigger planning when a task reaches READY
+      if (taskStatus === 'ready' && ev !== 'add') {
+        // Fire-and-forget — non-blocking
+        handleReadyTask(taskId, repo).catch((err: unknown) => {
+          console.warn('[kanban-watcher] orchestrator error:', err instanceof Error ? err.message : err)
+        })
+      }
     } catch {
       // non-blocking — file may have been removed
     }

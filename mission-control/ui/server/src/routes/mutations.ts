@@ -1,9 +1,11 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
+import { existsSync, unlinkSync } from 'fs'
 import type { KanbanColumn, KanbanTaskDraft, Origin, Priority } from '../types/kanban.js'
-import { moveTask, addComment, createTask } from '../services/kanbanWriter.js'
+import { moveTask, addComment, createTask, getTaskFilePath } from '../services/kanbanWriter.js'
 import { commitAndPush } from '../services/gitService.js'
 import { readTaskById } from '../services/kanbanReader.js'
+import { handleReadyTask, handleNewComment } from '../services/orchestratorService.js'
 
 const router = Router()
 
@@ -38,6 +40,14 @@ router.post('/tasks/move', async (req: Request<object, object, MoveBody>, res: R
     }
     const sourceFile = moveTask(repo, id, targetColumn)
     await commitAndPush(repo, `chore(kanban): move ${id} to ${targetColumn}`)
+
+    // Auto-orchestration: trigger planning when task is moved to READY via UI
+    if (targetColumn === 'READY') {
+      handleReadyTask(id, repo).catch((err: unknown) => {
+        console.warn('[mutations] orchestrator error:', err instanceof Error ? err.message : err)
+      })
+    }
+
     res.json({ ok: true, sourceFile })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -76,7 +86,15 @@ router.post('/tasks/create', async (req: Request<object, object, KanbanTaskDraft
 
   try {
     const sourceFile = createTask(body.repo, body)
-    await commitAndPush(body.repo, `chore(kanban): create ${body.id}`)
+    try {
+      await commitAndPush(body.repo, `chore(kanban): create ${body.id}`)
+    } catch (commitError) {
+      const taskFilePath = getTaskFilePath(body.repo, body.id)
+      if (existsSync(taskFilePath)) {
+        unlinkSync(taskFilePath)
+      }
+      throw commitError
+    }
     const task = readTaskById(body.repo, body.id)
     res.status(201).json({ ok: true, sourceFile, task })
   } catch (err) {
@@ -115,6 +133,12 @@ router.post('/tasks/comment', async (req: Request<object, object, CommentBody>, 
   try {
     addComment(repo, id, comment)
     await commitAndPush(repo, `chore(kanban): add comment to ${id}`)
+
+    // Auto comment review: evaluate if action is needed
+    handleNewComment(id, repo, text, author).catch((err: unknown) => {
+      console.warn('[mutations] comment-review error:', err instanceof Error ? err.message : err)
+    })
+
     res.json({ ok: true, comment })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

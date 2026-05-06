@@ -55,6 +55,7 @@ Default template workspaces:
 | `compliance-eu` | GDPR, DORA, PSD2, privacy, audit |
 | `git-flow` | Branches, commits, PRs, releases |
 | `github-cli` | GitHub interactions via `gh` CLI |
+| `gitlab-cli` | GitLab interactions via `glab` CLI |
 | `history-scan` | Mapping existing work to `done` task files in `kanban/tasks/` |
 | `kanban-sync` | Moving or creating kanban tasks |
 | `lang-enforcer` | Checking or enforcing English language standard |
@@ -97,6 +98,49 @@ English is the workspace default for **all** code, comments, docs, and kanban ta
 - User-facing i18n strings in files explicitly marked for translation (`locales/`, `i18n/`)
 
 Run `@lang-enforcer` to detect and fix violations.
+
+---
+
+## Auto-Orchestration Hook System
+
+When a task reaches **READY** status (via UI drag, API, or git), the Mission Control server:
+
+1. **Detects** the status change via `kanbanWatcher` (file watcher on kanban/tasks/).
+2. **Decomposes** the task — parses `## Delivery Plan` checklist items (or `## Acceptance Criteria`) into subtasks.
+3. **Creates subtasks** as new `READY` task files (prefix `FEAT-/FIX-/etc.`, origin `🤖 Agent`).
+4. **Moves parent** task from `READY` → `DOING`.
+5. **Writes jobs** to `agent-inbox/pending/<uuid>.json` — one per task/subtask.
+6. **Broadcasts SSE** events (`agent:orchestration_started`, `agent:subtask_created`, `agent:job_queued`) so the UI updates in real-time.
+7. **Emits metrics** to Langfuse for tracing.
+
+When a **human comment** is added, the server evaluates it:
+- **Actionable signals** (bug, fix, approved, urgent, etc.) → replies with agent comment, moves task to `READY` if appropriate → triggers orchestration.
+- **Feedback/questions** → queues a `review` job in the inbox.
+
+### Agent Inbox
+
+```
+agent-inbox/
+  pending/     ← new jobs (created by orchestrator)
+  in-progress/ ← jobs claimed by an agent
+  done/        ← completed jobs
+  failed/      ← failed jobs
+```
+
+**API:**
+- `GET  /api/orchestrate/inbox?status=pending` — list jobs
+- `POST /api/orchestrate/inbox/:id/claim` — claim a job
+- `POST /api/orchestrate/inbox/:id/finish` — mark done/failed
+- `POST /api/orchestrate/trigger` — manually trigger for a task
+- `GET  /api/orchestrate/summary` — count per status
+
+### Per-tool activation
+
+| Tool | Mechanism |
+|------|-----------|
+| Claude Code | `.claude/settings.json` hooks (Stop + UserPromptSubmit) + `CLAUDE.md` inbox check |
+| OpenCode | `/process-inbox` command (`.opencode/commands/process-inbox.md`) + `AGENTS.md` inbox check |
+| GitHub Copilot | `copilot-instructions.md` inbox check + `process-inbox.prompt.md` |
 
 ---
 

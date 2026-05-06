@@ -132,6 +132,12 @@ export const useKanbanStore = defineStore('kanban', () => {
           void loadTasks()
         }
       })
+      // Auto-refresh when orchestrator moves tasks or creates subtasks
+      for (const agentEvent of ['agent:task_moved', 'agent:subtask_created', 'agent:orchestration_started']) {
+        eventSource.addEventListener(agentEvent, () => {
+          void loadTasks()
+        })
+      }
       eventSource.onerror = () => {
         isLive.value = false
         eventSource?.close()

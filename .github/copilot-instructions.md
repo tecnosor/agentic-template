@@ -53,6 +53,31 @@ Full API reference: `mission-control/skills/metrics/SKILL.md`
 
 ---
 
+## Mandatory: Agent Inbox Check (Auto-Orchestration)
+
+At the **start of every conversation**, check for pending orchestration jobs:
+
+```bash
+PENDING=$(ls agent-inbox/pending/*.json 2>/dev/null | wc -l | tr -d ' ')
+echo "Agent inbox: $PENDING pending job(s)"
+if [ "$PENDING" -gt 0 ]; then
+  ls -1 agent-inbox/pending/*.json | head -5 | xargs -I{} cat {}
+fi
+```
+
+If jobs are found:
+1. Pick the **oldest** pending job (lowest `createdAt`).
+2. Claim it: `curl -s -X POST http://localhost:3099/api/orchestrate/inbox/<jobId>/claim`
+3. Read `context.description` and `action` fields.
+4. Invoke `@orchestrator` → `@builder` → `@guardian` → `@validator` workflow for the task.
+5. Finish: `curl -s -X POST http://localhost:3099/api/orchestrate/inbox/<jobId>/finish -d '{"outcome":"done"}'`
+6. Record a `skill_invoked` metrics event with `skill_name: "agent-inbox"`.
+7. Repeat for remaining pending jobs.
+
+> **Non-blocking rule**: if the user has an explicit request, handle that first, then process inbox.
+
+---
+
 ## Agent Routing
 
 | Task | Agent |
@@ -83,7 +108,7 @@ Full API reference: `mission-control/skills/metrics/SKILL.md`
 
 Skills are in `mission-control/skills/`. Read the relevant `SKILL.md` before using:
 `kanban-sync`, `build-check`, `code-review`, `compliance-eu`, `git-flow`,
-`github-cli`, `history-scan`, `secure-coder`, `test-driven`, `vertical-slice`, `page-component`
+`github-cli`, `gitlab-cli`, `history-scan`, `secure-coder`, `test-driven`, `vertical-slice`, `page-component`
 
 ## Language
 
