@@ -1,7 +1,8 @@
 # Skill: metrics
 
 ## Purpose
-Track and record all agent/skill activity metrics to the Mission Control metrics API (SQLite via REST).
+Track and record all agent/skill activity to Mission Control + Langfuse.
+Bridges from a simple REST API to persistent Langfuse traces automatically.
 
 ## When to Activate
 - At the start of every conversation (POST session)
@@ -159,5 +160,11 @@ The following read endpoints are available for reporting:
 
 ---
 
+## Langfuse Integration
+All events are automatically forwarded to Langfuse by Mission Control.
+You do NOT need Langfuse credentials in agents.
+For analytics: `GET /api/langfuse/config` returns the Langfuse UI URL.
+
 ## Dashboard
-View all metrics at: **http://localhost:3099** → click the 📊 Metrics tab.
+Mission Control UI → **📊 Metrics** tab (live in-session feed)
+Mission Control UI → **🔍 Traces** tab (full Langfuse history + cost analytics)

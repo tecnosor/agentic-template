@@ -49,6 +49,8 @@
 | `/lang-enforcer` | Checking or enforcing English language standard |
 | `/github-cli` | GitHub interactions: PRs, issues, releases, CI workflows |
 | `/vertical-slice` | Scaffolding new CQRS command or query (Node.js TypeScript) |
+| `/metrics` | Recording session/skill/agent events to Mission Control + Langfuse |
+| `/metrics-agent` | Lightweight metrics for sub-agents and CI scripts |
 
 ---
 
@@ -79,9 +81,7 @@
 
 | Repo | Role | Regulations |
 |------|------|-------------|
-| `mission-control` | Governance | N/A |
-| `demo-backend` | Node.js REST API (DDD example) | GDPR, DORA, PSD2 |
-| `demo-frontend` | Vue 3 SPA (DDD example) | GDPR, WCAG 2.1 AA |
+| `mission-control` | Governance + observability | N/A |
 
 ---
 
@@ -110,6 +110,21 @@ touch [new-repo]/kanban/tasks/.gitkeep
 # 5. Run @history-mapper to create done task files for existing work
 # 6. Run @project-scout to generate initial backlog task files
 ```
+
+---
+
+## Observability
+
+Mission Control runs a built-in Langfuse bridge.
+Agents never need Langfuse credentials — just POST to `http://localhost:3099/api/metrics/*`.
+
+| UI | URL |
+|----|-----|
+| Mission Control UI | http://localhost:3098 |
+| Mission Control API | http://localhost:3099 |
+| Langfuse (self-hosted) | http://localhost:3000 |
+
+See `README.md` for setup options (Cloud vs self-hosted docker).
 
 ---
 

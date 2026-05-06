@@ -6,6 +6,7 @@ import {
   listSessions,
   getSession,
   insertEvent,
+  insertEventBatch,
   listEvents,
   getSkillStats,
   getAgentStats,
@@ -15,6 +16,7 @@ import {
   exportAll,
 } from '../services/metricsService.js'
 import { addClient, removeClient, clientCount } from '../services/sseService.js'
+import { LANGFUSE_ENABLED, LANGFUSE_UI_URL } from '../config.js'
 import type { MetricEvent, Session } from '../types/metrics.js'
 
 const router = Router()
@@ -100,16 +102,9 @@ router.post('/metrics/events', (req, res) => {
 // POST /api/metrics/events/batch  → record multiple events at once
 router.post('/metrics/events/batch', (req, res) => {
   try {
-    const events = req.body as Omit<MetricEvent, 'id'>[]
-    if (!Array.isArray(events)) return res.status(400).json({ error: 'Body must be an array' })
-    const results = events.map(e =>
-      insertEvent({
-        ...e,
-        session_id: e.session_id ?? 'untracked',
-        timestamp: e.timestamp ?? new Date().toISOString(),
-      })
-    )
-    return res.status(201).json(results)
+    const body = req.body as Omit<MetricEvent, 'id'>[]
+    if (!Array.isArray(body)) return res.status(400).json({ error: 'Body must be an array' })
+    return res.status(201).json(insertEventBatch(body))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     res.status(500).json({ error: msg })
@@ -119,16 +114,9 @@ router.post('/metrics/events/batch', (req, res) => {
 // GET /api/metrics/events
 router.get('/metrics/events', (req, res) => {
   try {
-    const events = listEvents({
-      session_id:  String(req.query.session_id  ?? ''),
-      event_type:  String(req.query.event_type  ?? ''),
-      workspace:   String(req.query.workspace   ?? ''),
-      skill_name:  String(req.query.skill_name  ?? ''),
-      agent_name:  String(req.query.agent_name  ?? ''),
-      limit:  parseInt(String(req.query.limit  ?? 100), 10),
-      offset: parseInt(String(req.query.offset ?? 0),   10),
-    })
-    res.json(events)
+    const limit  = parseInt(String(req.query.limit  ?? 100), 10)
+    const offset = parseInt(String(req.query.offset ?? 0),   10)
+    res.json(listEvents(limit, offset))
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     res.status(500).json({ error: msg })
@@ -211,6 +199,14 @@ router.get('/metrics/stream', (req, res) => {
 
   addClient(clientId, res)
   req.on('close', () => removeClient(clientId))
+})
+
+// GET /api/langfuse/config → expose Langfuse URL to the Vue frontend
+router.get('/langfuse/config', (_req, res) => {
+  res.json({
+    enabled: LANGFUSE_ENABLED,
+    uiUrl:   LANGFUSE_ENABLED ? LANGFUSE_UI_URL : null,
+  })
 })
 
 export default router

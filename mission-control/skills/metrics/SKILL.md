@@ -1,7 +1,161 @@
 # Skill: metrics
 
 ## Purpose
-Track and record all agent/skill activity metrics to the Mission Control metrics API (SQLite via REST).
+Track and record all agent/skill activity metrics to the Mission Control API,
+which bridges transparently to **Langfuse** for persistent observability.
+
+## Architecture
+```
+Agent  →  POST http://localhost:3099/api/metrics/*  →  Mission Control  →  Langfuse
+                                                              │
+                                                         In-memory feed (SSE)
+                                                         for live dashboard
+```
+
+Agents never need Langfuse credentials — Mission Control handles the bridge.
+
+## Automatic Collection
+- **Kanban task changes** — `kanban-watcher` detects file changes in `*/kanban/tasks/*.md`
+- **Git commits** — `git-poller` polls every 5 minutes; git hook fires on each commit
+- **Dashboard** auto-refreshes via Server-Sent Events
+
+## When to Activate (manual agent events)
+- **Session start**: at the beginning of every conversation
+- **Skill invoked**: whenever a skill is activated
+- **Agent invoked**: when a sub-agent is called
+- **Task update**: when a kanban task status changes
+- **Context load**: when skill/file context is loaded
+- **Session end**: at the end of the conversation (best effort)
+
+## API Base
+```
+http://localhost:3099/api/metrics
+```
+> If the server is not running, skip silently. Never block real work.
+
+---
+
+## Token Estimation
+Agents do not expose real token counts. Estimate:
+```
+tokens_input  = Math.floor(userMessage.length   / 4)
+tokens_output = Math.floor(agentResponse.length / 4)
+```
+
+---
+
+## Workflow
+
+### 1. Session Start
+```bash
+curl -s -X POST http://localhost:3099/api/metrics/sessions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id":         "<uuid>",
+    "started_at": "<ISO8601>",
+    "workspace":  "<repo-name>",
+    "model":      "<model-name>"
+  }'
+```
+Store the `id` for all subsequent events.
+
+### 2. Skill Invoked
+```bash
+curl -s -X POST http://localhost:3099/api/metrics/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id":    "<session-id>",
+    "timestamp":     "<ISO8601>",
+    "event_type":    "skill_invoked",
+    "skill_name":    "<skill-name>",
+    "workspace":     "<workspace>",
+    "model":         "<model>",
+    "tokens_input":  <n>,
+    "tokens_output": <n>,
+    "duration_ms":   <n>,
+    "status":        "success"
+  }'
+```
+
+### 3. Agent Invoked
+```bash
+curl -s -X POST http://localhost:3099/api/metrics/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id":    "<session-id>",
+    "timestamp":     "<ISO8601>",
+    "event_type":    "agent_invoked",
+    "agent_name":    "<agent-name>",
+    "workspace":     "<workspace>",
+    "model":         "<model>",
+    "tokens_input":  <n>,
+    "tokens_output": <n>,
+    "duration_ms":   <n>,
+    "status":        "success"
+  }'
+```
+
+### 4. Task Update
+```bash
+curl -s -X POST http://localhost:3099/api/metrics/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id": "<session-id>",
+    "timestamp":  "<ISO8601>",
+    "event_type": "task_update",
+    "task_id":    "<FEAT-001>",
+    "workspace":  "<workspace>",
+    "status":     "success"
+  }'
+```
+
+### 5. Batch Events (preferred)
+```bash
+curl -s -X POST http://localhost:3099/api/metrics/events/batch \
+  -H "Content-Type: application/json" \
+  -d '[
+    { "session_id": "...", "event_type": "skill_invoked", "skill_name": "kanban-sync", ... },
+    { "session_id": "...", "event_type": "task_update",   "task_id": "FEAT-042", ... }
+  ]'
+```
+
+### 6. Session End
+```bash
+curl -s -X PATCH http://localhost:3099/api/metrics/sessions/<id> \
+  -H "Content-Type: application/json" \
+  -d '{ "ended_at": "<ISO8601>" }'
+```
+
+---
+
+## Query Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/metrics/summary` | Totals for current server run |
+| `GET /api/metrics/skills` | Per-skill stats |
+| `GET /api/metrics/agents` | Per-agent stats |
+| `GET /api/metrics/models` | Per-model stats |
+| `GET /api/metrics/tokens/daily?days=30` | Daily token trend |
+| `GET /api/metrics/events?limit=50` | Recent events |
+| `GET /api/metrics/sessions` | Recent sessions |
+| `GET /api/langfuse/config` | Langfuse URL + enabled status |
+
+---
+
+## Full Analytics in Langfuse
+For persistent history, cost breakdown, latency, and advanced analytics:
+- Open `GET /api/langfuse/config` to get the Langfuse UI URL
+- Or use the **🔍 Traces** tab in the Mission Control UI
+
+---
+
+## Error Handling
+Metrics are supplemental. Never block actual work — wrap all calls in try/catch.
+
+## Dashboard
+Mission Control UI → **📊 Metrics** tab (in-session summary)
+Mission Control UI → **🔍 Traces** tab (full Langfuse observability)
 
 ## Automatic Collection
 The following are recorded **automatically** without agent action:

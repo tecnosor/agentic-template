@@ -42,3 +42,16 @@ export const GITHUB_REPO_MAP: Record<string, string> = {}
 export function getGitHubRepoName(repo: string): string {
   return GITHUB_REPO_MAP[repo] ?? repo
 }
+
+// ─── Langfuse observability config ───────────────────────────────────────────
+// Set these in .env or docker-compose environment.
+// For Langfuse Cloud: LANGFUSE_HOST=https://cloud.langfuse.com
+// For self-hosted:    LANGFUSE_HOST=http://localhost:3000  (or http://langfuse-web:3000 in compose)
+export const LANGFUSE_PUBLIC_KEY = process.env.LANGFUSE_PUBLIC_KEY ?? ''
+export const LANGFUSE_SECRET_KEY = process.env.LANGFUSE_SECRET_KEY ?? ''
+export const LANGFUSE_HOST       = process.env.LANGFUSE_HOST ?? 'https://cloud.langfuse.com'
+// UI-facing URL so the Vue app can show a "Open Langfuse" link.
+// Defaults to LANGFUSE_HOST, but when running inside compose the internal URL
+// (http://langfuse-web:3000) differs from the browser-facing one.
+export const LANGFUSE_UI_URL     = process.env.LANGFUSE_UI_URL ?? LANGFUSE_HOST
+export const LANGFUSE_ENABLED    = Boolean(LANGFUSE_PUBLIC_KEY && LANGFUSE_SECRET_KEY)
