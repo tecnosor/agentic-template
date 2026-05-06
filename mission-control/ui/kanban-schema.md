@@ -26,6 +26,9 @@ updated: 2026-01-01
 lead_time: "—"
 github_issue: 42
 github_url: "https://github.com/org/repo/issues/42"
+issue_provider: github
+issue_number: 42
+issue_url: "https://github.com/org/repo/issues/42"
 ---
 
 ## Description
@@ -60,8 +63,11 @@ Add the API key rotation workflow to the backend service.
 |------|------|------|
 | `lead_time` / `lead-time` | string | Displayed in the task modal |
 | `completed` | date/string | Completion date or label |
-| `github_issue` | number | Linked GitHub issue number |
-| `github_url` | string | Linked GitHub issue URL |
+| `issue_provider` | string | `github` or `gitlab` |
+| `issue_number` | number | Linked issue number/IID |
+| `issue_url` | string | Linked issue URL |
+| `github_issue` | number | Legacy GitHub issue number, still supported |
+| `github_url` | string | Legacy GitHub issue URL, still supported |
 
 ---
 
@@ -107,7 +113,6 @@ BACKLOG → TODO → READY → DOING → TESTING → HUMAN_VALIDATION → DONE
 
 ### Guards
 
-- **DOING max = 2 tasks** across the workspace
 - **DONE is append-only** — tasks in `DONE` must not move backward
 - **Origin is immutable**
 

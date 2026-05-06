@@ -22,6 +22,7 @@ mission-control/
 │   ├── compliance-eu/
 │   ├── git-flow/
 │   ├── github-cli/
+│   ├── gitlab-cli/
 │   ├── history-scan/
 │   ├── kanban-sync/
 │   ├── lang-enforcer/
@@ -81,7 +82,7 @@ Services started:
 |---------|-----|
 | Mission Control UI | http://localhost:3098 |
 | Mission Control API | http://localhost:3099 |
-| Langfuse UI | http://localhost:3000 |
+| Langfuse UI | http://localhost:3001 |
 | MinIO (S3) | http://localhost:9001 |
 
 First-run admin login: credentials from `LANGFUSE_INIT_*` in `.env` (default: `admin@mission-control.local` / `Admin1234!`).
@@ -92,6 +93,6 @@ First-run admin login: credentials from `LANGFUSE_INIT_*` in `.env` (default: `a
 
 1. No production code here — governance only
 2. All text in English (AGENTS.md, skills, kanban tasks)
-3. Max 2 tasks with `status: doing` at any time
+3. Issue sync can target either GitHub or GitLab, depending on repo configuration
 4. Update task status in the task's YAML frontmatter — no separate stage files
 5. `@reviewer` is always the last agent invoked before merge

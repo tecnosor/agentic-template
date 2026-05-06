@@ -2,6 +2,7 @@ import { readFileSync, existsSync, readdirSync } from 'fs'
 import { resolve, join } from 'path'
 import { WORKSPACE_ROOT, REPOS } from '../config.js'
 import type { KanbanTask, KanbanColumn, Priority, Origin } from '../types/kanban.js'
+import type { IssueProvider } from '../config.js'
 import { getCommentsForTask } from './kanbanWriter.js'
 
 function normalizeOrigin(raw = ''): Origin {
@@ -22,6 +23,13 @@ function parseOptionalNumber(raw?: string): number | undefined {
   if (!raw) return undefined
   const value = Number(raw)
   return Number.isFinite(value) ? value : undefined
+}
+
+function normalizeIssueProvider(raw?: string): IssueProvider | undefined {
+  if (!raw) return undefined
+  const value = raw.trim().toLowerCase()
+  if (value === 'github' || value === 'gitlab') return value
+  return undefined
 }
 
 function normalizeStatus(raw = ''): KanbanColumn {
@@ -123,6 +131,14 @@ export function readTaskFile(filePath: string, repo: string): KanbanTask | null 
     if (!id) return null
 
     const { description, acceptanceCriteria } = extractBodySections(body)
+    const issueProvider = normalizeIssueProvider(
+      fields['issue_provider']
+      ?? (fields['issue_number'] || fields['issue_url'] ? 'github' : undefined)
+      ?? (fields['github_issue'] || fields['github_url'] ? 'github' : undefined)
+      ?? (fields['gitlab_issue'] || fields['gitlab_url'] ? 'gitlab' : undefined),
+    )
+    const issueNumber = parseOptionalNumber(fields['issue_number'] ?? fields['github_issue'] ?? fields['gitlab_issue'])
+    const issueUrl = fields['issue_url'] || fields['github_url'] || fields['gitlab_url'] || undefined
 
     return {
       id,
@@ -137,8 +153,11 @@ export function readTaskFile(filePath: string, repo: string): KanbanTask | null 
       updated: fields['updated'] || '',
       leadTime: fields['lead_time'] ?? fields['lead-time'] ?? '—',
       completed: fields['completed'] || undefined,
-      githubIssueNumber: parseOptionalNumber(fields['github_issue']),
-      githubIssueUrl: fields['github_url'] || undefined,
+      issueProvider,
+      issueNumber,
+      issueUrl,
+      githubIssueNumber: issueProvider === 'github' ? issueNumber : parseOptionalNumber(fields['github_issue']),
+      githubIssueUrl: issueProvider === 'github' ? issueUrl : fields['github_url'] || undefined,
     }
   } catch (error) {
     console.warn(`[kanbanReader] Could not parse ${filePath}:`, error)

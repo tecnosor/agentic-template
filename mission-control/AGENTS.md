@@ -48,6 +48,7 @@
 | `/code-review` | Code review, quality gate before PR |
 | `/lang-enforcer` | Checking or enforcing English language standard |
 | `/github-cli` | GitHub interactions: PRs, issues, releases, CI workflows |
+| `/gitlab-cli` | GitLab interactions: MRs, issues, releases, CI pipelines |
 | `/vertical-slice` | Scaffolding new CQRS command or query (Node.js TypeScript) |
 | `/metrics` | Recording session/skill/agent events to Mission Control + Langfuse |
 | `/metrics-agent` | Lightweight metrics for sub-agents and CI scripts |

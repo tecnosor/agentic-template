@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import type { KanbanTask, KanbanColumn, Origin } from '../types/kanban'
+import { ref, computed, onMounted } from 'vue'
+import type { KanbanTask, KanbanColumn, Origin, IssueProvider } from '../types/kanban'
 import { COLUMNS, COLUMN_LABELS, PRIORITY_CONFIG } from '../types/kanban'
 import { useKanbanStore } from '../stores/kanbanStore'
 
@@ -54,23 +54,61 @@ async function moveTo(col: KanbanColumn) {
   }
 }
 
-// ── GitHub sync ───────────────────────────────────────────────────────────────
+// ── Issue tracker sync ───────────────────────────────────────────────────────
 const syncing = ref(false)
 const syncResult = ref<string | null>(null)
+const issueProvider = ref<IssueProvider | null>(null)
+const issueProviderEnabled = ref(false)
 
-async function syncGitHub() {
+const issueProviderLabel = computed(() => {
+  if (issueProvider.value === 'gitlab') return 'GitLab'
+  if (issueProvider.value === 'github') return 'GitHub'
+  return 'Issue'
+})
+const createIssueLabel = computed(() =>
+  issueProviderLabel.value === 'Issue'
+    ? '↑ Create Issue'
+    : `↑ Create ${issueProviderLabel.value} Issue`,
+)
+const trackedIssueUrl = computed(() => props.task.issueUrl ?? props.task.githubIssueUrl)
+const trackedIssueNumber = computed(() => props.task.issueNumber ?? props.task.githubIssueNumber)
+const trackedIssueProvider = computed<IssueProvider>(() => {
+  if (props.task.issueProvider) return props.task.issueProvider
+  if (props.task.githubIssueUrl || props.task.githubIssueNumber) return 'github'
+  return issueProvider.value ?? 'github'
+})
+
+async function loadIssueConfig() {
+  try {
+    const res = await fetch('/api/issues/config')
+    if (!res.ok) return
+    const data = await res.json() as { provider?: IssueProvider | null; enabled?: boolean }
+    if (data.provider === 'github' || data.provider === 'gitlab') {
+      issueProvider.value = data.provider
+    }
+    issueProviderEnabled.value = Boolean(data.enabled && data.provider)
+  } catch {
+    issueProviderEnabled.value = false
+  }
+}
+
+async function syncIssueTracker() {
   syncing.value = true
   syncResult.value = null
   try {
-    const res = await fetch('/api/github/sync-task', {
+    const res = await fetch('/api/issues/sync-task', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: props.task.id, repo: props.task.repo }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error ?? 'Sync failed')
+    if (data.config?.provider === 'github' || data.config?.provider === 'gitlab') {
+      issueProvider.value = data.config.provider
+      issueProviderEnabled.value = true
+    }
     syncResult.value = data.issue
-      ? `✓ Issue #${data.issue.number}`
+      ? `✓ ${issueProviderLabel.value} issue #${data.issue.number}`
       : '✓ Synced'
   } catch (e) {
     syncResult.value = `✗ ${e instanceof Error ? e.message : String(e)}`
@@ -78,6 +116,10 @@ async function syncGitHub() {
     syncing.value = false
   }
 }
+
+onMounted(() => {
+  void loadIssueConfig()
+})
 
 // ── Acceptance criteria ───────────────────────────────────────────────────────
 const criteria = computed(() =>
@@ -209,24 +251,31 @@ function formatDate(iso: string) {
           <p v-if="moveError" class="mt-1.5 text-xs text-red-400">{{ moveError }}</p>
         </div>
 
-        <!-- GitHub Issue -->
+        <!-- Issue tracker -->
         <div class="flex items-center gap-3">
           <a
-            v-if="task.githubIssueUrl"
-            :href="task.githubIssueUrl"
+            v-if="trackedIssueUrl"
+            :href="trackedIssueUrl"
             target="_blank"
             rel="noopener noreferrer"
             class="text-xs text-blue-400 hover:text-blue-300 underline"
           >
-            GitHub Issue #{{ task.githubIssueNumber }}
+            {{ trackedIssueProvider === 'gitlab' ? 'GitLab' : 'GitHub' }} Issue #{{ trackedIssueNumber }}
           </a>
           <button
             class="text-xs px-3 py-1.5 rounded border border-slate-600 bg-slate-800 text-slate-400 hover:border-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50"
-            :disabled="syncing"
-            @click="syncGitHub"
+            :disabled="syncing || !issueProviderEnabled"
+            @click="syncIssueTracker"
           >
-            {{ syncing ? 'Syncing…' : task.githubIssueUrl ? '↺ Re-sync GitHub' : '↑ Create GitHub Issue' }}
+            {{
+              syncing
+                ? 'Syncing…'
+                : trackedIssueUrl
+                  ? `↺ Re-sync ${issueProviderLabel}`
+                  : createIssueLabel
+            }}
           </button>
+          <span v-if="!issueProviderEnabled" class="text-xs text-slate-500">No issue provider configured</span>
           <span v-if="syncResult" class="text-xs text-slate-400">{{ syncResult }}</span>
         </div>
 

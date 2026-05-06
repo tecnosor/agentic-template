@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
 import { WORKSPACE_ROOT, REPOS } from '../config.js'
 import type { KanbanColumn, KanbanComment, KanbanTaskDraft } from '../types/kanban.js'
+import type { IssueProvider } from '../config.js'
 
 // ── Comments sidecar (kanban/comments.json) ───────────────────────────────────
 
@@ -11,6 +12,19 @@ function getCommentsPath(repo: string): string {
 
 export function getTaskFilePath(repo: string, taskId: string): string {
   return resolve(WORKSPACE_ROOT, repo, 'kanban', 'tasks', `${taskId}.md`)
+}
+
+function resolveExistingTaskFilePath(repo: string, taskId: string): string | null {
+  const primary = getTaskFilePath(repo, taskId)
+  if (existsSync(primary)) return primary
+
+  for (const discoveredRepo of REPOS) {
+    if (discoveredRepo === repo) continue
+    const candidate = getTaskFilePath(discoveredRepo, taskId)
+    if (existsSync(candidate)) return candidate
+  }
+
+  return null
 }
 
 function readCommentsFile(repo: string): Record<string, KanbanComment[]> {
@@ -81,24 +95,37 @@ export function updateGitHubIssueFields(
   issueNumber: number,
   issueUrl: string,
 ): void {
-  const filePath = getTaskFilePath(repo, taskId)
-  if (!existsSync(filePath)) return
+  updateIssueFields(repo, taskId, 'github', issueNumber, issueUrl)
+}
+
+export function updateIssueFields(
+  repo: string,
+  taskId: string,
+  provider: IssueProvider,
+  issueNumber: number,
+  issueUrl: string,
+): void {
+  const filePath = resolveExistingTaskFilePath(repo, taskId)
+  if (!filePath || !existsSync(filePath)) return
 
   const content = readFileSync(filePath, 'utf-8')
-  // Inject or update github_issue and github_url in the YAML frontmatter
-  const ghIssuePattern = /^github_issue:.*$/m
-  const ghUrlPattern = /^github_url:.*$/m
+
+  const setYamlField = (source: string, key: string, value: string): string => {
+    const pattern = new RegExp(`^${key}:.*$`, 'm')
+    if (pattern.test(source)) {
+      return source.replace(pattern, `${key}: ${value}`)
+    }
+    return source.replace(/^(---\n)/, `$1${key}: ${value}\n`)
+  }
 
   let updated = content
-  if (ghIssuePattern.test(updated)) {
-    updated = updated.replace(ghIssuePattern, `github_issue: ${issueNumber}`)
-  } else {
-    updated = updated.replace(/^(---\n)/, `$1github_issue: ${issueNumber}\n`)
-  }
-  if (ghUrlPattern.test(updated)) {
-    updated = updated.replace(ghUrlPattern, `github_url: "${issueUrl}"`)
-  } else {
-    updated = updated.replace(/^(---\n)/, `$1github_url: "${issueUrl}"\n`)
+  updated = setYamlField(updated, 'issue_provider', provider)
+  updated = setYamlField(updated, 'issue_number', String(issueNumber))
+  updated = setYamlField(updated, 'issue_url', `"${issueUrl}"`)
+
+  if (provider === 'github') {
+    updated = setYamlField(updated, 'github_issue', String(issueNumber))
+    updated = setYamlField(updated, 'github_url', `"${issueUrl}"`)
   }
 
   writeFileSync(filePath, updated, 'utf-8')

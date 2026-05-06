@@ -7,6 +7,7 @@ RUN npx tsc --noEmit || true
 
 FROM node:22-alpine
 WORKDIR /app
+RUN apk add --no-cache git
 COPY --from=builder /app /app
 ENV NODE_ENV=production
 EXPOSE 3099
