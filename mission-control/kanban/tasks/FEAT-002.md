@@ -1,7 +1,7 @@
 ---
 id: FEAT-002
 title: "Validation task"
-status: DOING
+status: DONE
 origin: "👤 Human"
 priority: LOW
 repo: mission-control
