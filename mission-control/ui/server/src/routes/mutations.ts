@@ -10,6 +10,7 @@ import { handleReadyTask, handleNewComment } from '../services/orchestratorServi
 const router = Router()
 
 const TASK_ID_PATTERN = /^(FEAT|FIX|CHORE|SCOUT|DONE|BACKLOG|LANG)-[0-9]{3,}$/
+const REPO_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/
 const VALID_PRIORITIES: Priority[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 const VALID_COLUMNS: KanbanColumn[] = ['BACKLOG', 'TODO', 'READY', 'DOING', 'TESTING', 'HUMAN_VALIDATION', 'DONE']
 const VALID_ORIGINS: Origin[] = ['👤 Human', '🤖 Agent']
@@ -25,6 +26,10 @@ router.post('/tasks/move', async (req: Request<object, object, MoveBody>, res: R
   const { id, repo, targetColumn } = req.body
   if (!id || !repo || !targetColumn) {
     res.status(400).json({ error: 'id, repo, and targetColumn are required' })
+    return
+  }
+  if (!REPO_NAME_PATTERN.test(repo)) {
+    res.status(400).json({ error: 'repo must be a valid directory name (letters, numbers, dashes, underscores)' })
     return
   }
 
@@ -67,7 +72,7 @@ router.post('/tasks/create', async (req: Request<object, object, KanbanTaskDraft
     return
   }
   // Validate repo is a safe directory name (no path traversal)
-  if (!body.repo || !/^[a-zA-Z0-9_-]+$/.test(body.repo)) {
+  if (!body.repo || !REPO_NAME_PATTERN.test(body.repo)) {
     res.status(400).json({ error: 'repo must be a valid directory name (letters, numbers, dashes, underscores)' })
     return
   }
@@ -120,6 +125,10 @@ router.post('/tasks/comment', async (req: Request<object, object, CommentBody>, 
   const { id, repo, author, text, authorName } = req.body
   if (!id || !repo || !author || !text) {
     res.status(400).json({ error: 'id, repo, author, and text are required' })
+    return
+  }
+  if (!REPO_NAME_PATTERN.test(repo)) {
+    res.status(400).json({ error: 'repo must be a valid directory name (letters, numbers, dashes, underscores)' })
     return
   }
 
