@@ -3,13 +3,17 @@
 # Starts:
 #   1. Langfuse (self-hosted v3) — AI observability at http://localhost:3000
 #   2. Mission Control API server — Kanban + Langfuse bridge at http://localhost:3099
+#   3. Mission Control UI — Vue 3 dashboard at http://localhost:3098
 #
-# Quick start:
-#   cp .env.example .env          # then edit secrets
+# Quick start (single command):
+#   cd mission-control
+#   cp .env.example .env   # only the first time
 #   docker compose up -d
 #
-# Langfuse UI:  http://localhost:3000   (login with LANGFUSE_INIT_USER_EMAIL/PASSWORD)
-# Mission Control UI: run `npm run dev` inside ui/app/ (or build a static image)
+# URLs:
+#   Mission Control UI:  http://localhost:3098
+#   Langfuse UI:         http://localhost:3000  (admin@mission-control.local / Admin1234!)
+#   Mission Control API: http://localhost:3099
 #
 # To use Langfuse Cloud instead of self-hosting, skip this compose entirely —
 # just set LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, and
@@ -110,6 +114,17 @@ services:
     volumes:
       # Mount workspace read-only so kanban files are visible
       - ${WORKSPACE_ROOT:-../..}:/workspace:ro
+
+  # ─── Mission Control UI (Vue 3 + nginx) ──────────────────────────────────
+  mission-control-ui:
+    build:
+      context: ./ui/app
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - mission-control
+    ports:
+      - "3098:3098"
 
   # ─── Postgres (Langfuse OLTP) ────────────────────────────────────────────
   db:

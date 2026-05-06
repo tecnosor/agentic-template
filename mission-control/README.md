@@ -71,7 +71,7 @@ mission-control/
 
 ```bash
 cd mission-control
-cp .env.example .env          # fill in secrets
+cp .env.example .env          # fill in secrets (only first time)
 docker compose up -d
 ```
 
@@ -79,12 +79,14 @@ Services started:
 
 | Service | URL |
 |---------|-----|
-| Langfuse UI | http://localhost:3000 |
 | Mission Control UI | http://localhost:3098 |
 | Mission Control API | http://localhost:3099 |
+| Langfuse UI | http://localhost:3000 |
 | MinIO (S3) | http://localhost:9001 |
 
-First-run admin login: credentials from `LANGFUSE_INIT_*` in `.env`.
+First-run admin login: credentials from `LANGFUSE_INIT_*` in `.env` (default: `admin@mission-control.local` / `Admin1234!`).
+
+> Everything is dockerized. No Node.js or npm required on the host.
 
 ## Core Rules
 
