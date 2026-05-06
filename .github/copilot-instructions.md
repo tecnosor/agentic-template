@@ -81,9 +81,26 @@ Full API reference: `mission-control/skills/metrics/SKILL.md`
 
 ## Skills
 
-Skills are in `mission-control/skills/`. Read the relevant `SKILL.md` before using:
-`kanban-sync`, `build-check`, `code-review`, `compliance-eu`, `git-flow`,
-`github-cli`, `gitlab-cli`, `history-scan`, `secure-coder`, `test-driven`, `vertical-slice`, `page-component`
+Skills are in `mission-control/skills/`. Use the `read_file` tool on the path below **before** performing any task in that domain:
+
+| Skill | Domain | Path |
+|-------|--------|------|
+| `build-check` | CI validation, pre-PR build gate | `mission-control/skills/build-check/SKILL.md` |
+| `code-review` | Code quality gate, review checklist | `mission-control/skills/code-review/SKILL.md` |
+| `compliance-eu` | GDPR, DORA, PSD2, privacy, audit | `mission-control/skills/compliance-eu/SKILL.md` |
+| `git-flow` | Branches, commits, PRs, releases | `mission-control/skills/git-flow/SKILL.md` |
+| `github-cli` | GitHub interactions via `gh` CLI | `mission-control/skills/github-cli/SKILL.md` |
+| `gitlab-cli` | GitLab interactions via `glab` CLI | `mission-control/skills/gitlab-cli/SKILL.md` |
+| `history-scan` | Map git history → kanban `done` tasks | `mission-control/skills/history-scan/SKILL.md` |
+| `kanban-sync` | Create/move/update kanban tasks | `mission-control/skills/kanban-sync/SKILL.md` |
+| `lang-enforcer` | Detect/fix non-English content (LANG-NNN) | `mission-control/skills/lang-enforcer/SKILL.md` |
+| `metrics` | Mission Control metrics API (sessions/events) | `mission-control/skills/metrics/SKILL.md` |
+| `metrics-agent` | Agent-side metrics instrumentation | `mission-control/skills/metrics-agent/SKILL.md` |
+| `page-component` | Scaffold Vue 3 page/component/composable | `mission-control/skills/page-component/SKILL.md` |
+| `project-status` | Project health, backlog, status report | `mission-control/skills/project-status/SKILL.md` |
+| `secure-coder` | OWASP Top 10, secrets, vulnerability review | `mission-control/skills/secure-coder/SKILL.md` |
+| `test-driven` | TDD, test quality, coverage | `mission-control/skills/test-driven/SKILL.md` |
+| `vertical-slice` | Scaffold CQRS command/query (Node.js/TS) | `mission-control/skills/vertical-slice/SKILL.md` |
 
 ## Language
 
