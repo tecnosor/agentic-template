@@ -1,7 +1,7 @@
 ---
 id: FEAT-001
 title: "Create a mini game"
-status: BACKLOG
+status: READY
 origin: "👤 Human"
 priority: MEDIUM
 repo: mission-control
