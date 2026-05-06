@@ -1,0 +1,16 @@
+{
+  "taskId": "FEAT-001",
+  "repo": "mission-control",
+  "action": "execute",
+  "parentId": null,
+  "subtaskIds": [],
+  "sessionId": "orch-ccdea26f-c68c-4f9b-9ab0-33cc55ab9b73",
+  "context": {
+    "title": "Create standalone Snake mini-game (HTML + JS)",
+    "description": "Build a fully client-side Snake mini-game as a standalone project in a new top-level folder `snake-game/`.",
+    "priority": "MEDIUM"
+  },
+  "id": "0115541b-b640-4820-8ab7-d61bea2eaf36",
+  "createdAt": "2026-05-06T17:31:30.989Z",
+  "status": "done"
+}
