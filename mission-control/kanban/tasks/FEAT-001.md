@@ -1,43 +1,52 @@
 ---
 id: FEAT-001
-title: "Add a client-side Snake mini-game tab"
-status: HUMAN_VALIDATION
+title: "Create standalone Snake mini-game (HTML + JS)"
+status: DOING
 origin: "👤 Human"
 priority: MEDIUM
-repo: mission-control
+repo: snake-game
 created: 2026-05-06
 updated: 2026-05-06
+branch: feature/FEAT-001-snake-game
 ---
 
 ## Description
 
-Add a fully client-side Snake mini-game to the Mission Control UI.
+Build a fully client-side Snake mini-game as a standalone project in a new top-level folder `snake-game/`.
 
-Implement it inside `mission-control/ui/app` using the existing Vue + TypeScript stack, with no server calls, no backend persistence, and no external gameplay libraries.
+**Not** part of Mission Control — this is its own mini-project with no framework dependency, no build step, and no server.
+It must run by opening `index.html` directly in any modern browser.
 
-The feature should feel like an intentional playground panel inside the existing dashboard rather than a disconnected demo page.
+## Feedback Applied
+
+> "lo del snake... deberia ser un proyecto diferente que no esta en mission control si no en una nueva carpeta, y no necesita ser de vue, solo html y JS"
+
+- Removed the Arcade tab and `SnakeGame.vue` component from the Mission Control UI.
+- New `snake-game/` folder at workspace root with vanilla HTML + JS only.
 
 ## Scope
 
-- Add a dedicated entry point in the main tab bar.
-- Render the game board, current score, best score, and current game state.
-- Support keyboard controls with arrow keys and WASD.
-- Handle start, restart, pause/resume, food spawning, score growth, and collision detection.
-- Persist only the best score in browser storage.
+- Single `index.html` + one `game.js` file — zero dependencies.
+- 16×16 grid rendered on a `<canvas>` element.
+- Arrow keys and WASD controls.
+- Start, pause/resume (Space), and restart (Enter or button).
+- Score and best score (persisted in `localStorage`).
+- Game ends on wall or self collision.
+- Dark-themed, readable without any CSS framework.
 
 ## Delivery Plan
 
-- [x] Add a new client-only tab and mount a self-contained Snake component.
-- [x] Implement the game loop, controls, collision detection, and score tracking.
-- [x] Add lightweight instructions and visual polish so the feature is understandable without reading code.
-- [x] Validate the frontend build.
+- [x] Revert `SnakeGame.vue` and Arcade tab from mission-control UI.
+- [ ] Create `snake-game/index.html` — layout, canvas, score panel, instructions.
+- [ ] Create `snake-game/game.js` — game loop, input, rendering, localStorage best score.
+- [ ] Manual smoke-test: open in browser, play a full run.
 
 ## Acceptance Criteria
 
-- User can open the Snake game from the Mission Control UI without any backend dependency.
+- `snake-game/index.html` opens directly in the browser with no server.
 - Game works with arrow keys and WASD.
-- Snake grows after eating food and the run ends on wall or self collision.
-- UI shows current score, best score, and current state.
-- User can start, pause/resume, and restart the game.
-- Frontend build passes.
+- Snake grows after eating food; run ends on wall or self collision.
+- Score and best score visible at all times.
+- Start, pause/resume, and restart work correctly.
+- No Vue, no npm, no build step required.
 

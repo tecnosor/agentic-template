@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f172a;
+      --surface:   #1e293b;
+      --border:    #334155;
+      --text:      #e2e8f0;
+      --muted:     #94a3b8;
+      --accent:    #4ade80;
+      --head:      #bbf7d0;
+      --food:      #fbbf24;
+      --danger:    #f87171;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 1rem;
+      min-height: 100dvh;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--accent);
+    }
+
+    /* ── Score bar ────────────────────────────────────────── */
+    #scorebar {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 0.625rem 1.25rem;
+    }
+
+    .score-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .score-item .label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .score-item .value {
+      font-size: 1.5rem;
+      font-weight: 900;
+      line-height: 1.1;
+      min-width: 3ch;
+      text-align: center;
+    }
+
+    #score-value  { color: var(--text); }
+    #best-value   { color: var(--accent); }
+
+    .sep { width: 1px; height: 2rem; background: var(--border); }
+
+    #state-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+    }
+
+    .badge--idle       { background: rgba(56,189,248,0.12); color: #7dd3fc; border-color: rgba(56,189,248,0.25); }
+    .badge--running    { background: rgba(74,222,128,0.12); color: #86efac; border-color: rgba(74,222,128,0.25); }
+    .badge--paused     { background: rgba(251,191,36,0.12); color: #fcd34d; border-color: rgba(251,191,36,0.25); }
+    .badge--game-over  { background: rgba(248,113,113,0.12); color: #fca5a5; border-color: rgba(248,113,113,0.25); }
+
+    /* ── Canvas ───────────────────────────────────────────── */
+    #canvas {
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      display: block;
+      /* size set in JS */
+    }
+
+    /* ── Buttons ──────────────────────────────────────────── */
+    #controls {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border-radius: 0.6rem;
+      padding: 0.55rem 1.2rem;
+      border: 1px solid transparent;
+      transition: opacity 0.15s, background 0.15s;
+    }
+
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    #btn-start  { background: var(--accent);  color: #0f172a; }
+    #btn-start:hover:not(:disabled)  { opacity: 0.85; }
+
+    #btn-pause  { background: transparent; color: var(--text); border-color: var(--border); }
+    #btn-pause:hover:not(:disabled)  { border-color: var(--muted); }
+
+    /* ── Instructions ─────────────────────────────────────── */
+    #instructions {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.7;
+      max-width: 36ch;
+    }
+
+    #instructions strong { color: var(--text); }
+  </style>
+</head>
+<body>
+  <h1>Snake</h1>
+
+  <div id="scorebar">
+    <div class="score-item">
+      <span class="label">Score</span>
+      <span class="value" id="score-value">0</span>
+    </div>
+    <div class="sep"></div>
+    <div class="score-item">
+      <span class="label">Best</span>
+      <span class="value" id="best-value">0</span>
+    </div>
+    <div class="sep"></div>
+    <div class="score-item">
+      <span class="label">State</span>
+      <span id="state-badge" class="badge--idle">Idle</span>
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <div id="controls">
+    <button id="btn-start">Start</button>
+    <button id="btn-pause" disabled>Pause</button>
+  </div>
+
+  <p id="instructions">
+    <strong>Arrows</strong> or <strong>WASD</strong> to move ·
+    <strong>Space</strong> to pause ·
+    <strong>Enter</strong> to restart
+  </p>
+
+  <script src="game.js"></script>
+</body>
+</html>
