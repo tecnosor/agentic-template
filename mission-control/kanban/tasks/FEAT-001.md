@@ -1,7 +1,7 @@
 ---
 id: FEAT-001
 title: "Create standalone Snake mini-game (HTML + JS)"
-status: DOING
+status: DONE
 origin: "👤 Human"
 priority: MEDIUM
 repo: snake-game
@@ -37,9 +37,9 @@ It must run by opening `index.html` directly in any modern browser.
 ## Delivery Plan
 
 - [x] Revert `SnakeGame.vue` and Arcade tab from mission-control UI.
-- [ ] Create `snake-game/index.html` — layout, canvas, score panel, instructions.
-- [ ] Create `snake-game/game.js` — game loop, input, rendering, localStorage best score.
-- [ ] Manual smoke-test: open in browser, play a full run.
+- [x] Create `snake-game/index.html` — layout, canvas, score panel, instructions.
+- [x] Create `snake-game/game.js` — game loop, input, rendering, localStorage best score.
+- [x] Manual smoke-test: open in browser, play a full run.
 
 ## Acceptance Criteria
 
