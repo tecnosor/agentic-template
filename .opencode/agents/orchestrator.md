@@ -22,6 +22,26 @@ You are the **Orchestrator** for this workspace. You coordinate the full task li
 
 ---
 
+## Step 0 — Register Metrics Session
+
+At the very start of the conversation, register a session with Mission Control (non-blocking):
+
+```bash
+SESSION_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
+curl -s -X POST http://localhost:3099/api/metrics/sessions \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"id\": \"$SESSION_ID\",
+    \"started_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+    \"workspace\": \"template\",
+    \"model\": \"$(cat opencode.json | python3 -c \"import sys,json; print(json.load(sys.stdin).get('model','unknown'))\" 2>/dev/null || echo 'unknown')\"
+  }" || true
+```
+
+Store `$SESSION_ID`. After each skill/agent invocation, POST a `skill_invoked` or `agent_invoked` event. At session end, PATCH with `ended_at`. See `mission-control/skills/metrics/SKILL.md` for the full API.
+
+---
+
 ## Step 1 — Determine Context
 
 ```bash
@@ -47,9 +67,6 @@ If the branch is `main`, `master`, `develop`, or `release/*`:
 2. Find the task file matching the current branch/ticket ID
 3. If found with `status: ready`: update frontmatter to `status: doing`
 4. If NOT found anywhere: create a new task file in `kanban/tasks/FEAT-NNN.md` with `status: doing`
-
-**Check DOING limit**: If 2 or more task files already have `status: doing`, stop and report:
-> "DOING limit reached (max 2). Complete an existing task before starting a new one."
 
 ---
 
