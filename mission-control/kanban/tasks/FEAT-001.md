@@ -1,24 +1,19 @@
 ---
 id: FEAT-001
-title: Example task — replace with your own
+title: "Create a mini game"
 status: BACKLOG
 origin: "👤 Human"
 priority: MEDIUM
-repo: demo-backend
-created: 2025-05-03
-updated: 2025-05-03
+repo: mission-control
+created: 2026-05-06
+updated: 2026-05-06
 ---
 
 ## Description
 
-This is a sample task file to illustrate the one-file-per-task kanban structure.
-Delete this and add your own tasks in `kanban/tasks/`.
+create the snake game for web with html and javascript. all native client side.
 
 ## Acceptance Criteria
 
-- [ ] Define acceptance criteria here
-- [ ] Each criterion is independently verifiable
+_(empty)_
 
-## Notes
-
-Valid `status` values: `BACKLOG` | `TODO` | `READY` | `DOING` | `TESTING` | `HUMAN_VALIDATION` | `DONE`
