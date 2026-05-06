@@ -66,6 +66,19 @@ Full API reference: `mission-control/skills/metrics/SKILL.md`
 | Map existing work to kanban | `@history-mapper` |
 | Language consistency check | `@lang-enforcer` |
 
+## Reusable Prompts (use with #prompt or /prompt in chat)
+
+| Prompt | What it does |
+|--------|-------------|
+| [orchestrate](.github/prompts/orchestrate.prompt.md) | Full task lifecycle — kanban → build → PR |
+| [audit](.github/prompts/audit.prompt.md) | Security + compliance audit (OWASP, GDPR, DORA) |
+| [lang-check](.github/prompts/lang-check.prompt.md) | Find non-English content, propose LANG-NNN fixes |
+| [new-slice](.github/prompts/new-slice.prompt.md) | Scaffold CQRS command or query (backend) |
+| [new-component](.github/prompts/new-component.prompt.md) | Scaffold Vue 3 page/component/composable |
+| [map-history](.github/prompts/map-history.prompt.md) | Map git history → kanban done tasks |
+| [scout](.github/prompts/scout.prompt.md) | Analyze codebase, propose backlog tasks (report only) |
+| [metrics-session](.github/prompts/metrics-session.prompt.md) | Register session in Mission Control + Langfuse |
+
 ## Skills
 
 Skills are in `mission-control/skills/`. Read the relevant `SKILL.md` before using:
