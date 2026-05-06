@@ -110,12 +110,12 @@ services:
       # Internal compose network URL (not the browser-facing one)
       LANGFUSE_HOST:        http://langfuse-web:3000
       # Browser-facing URL for the "Open Langfuse" button in the UI
-      LANGFUSE_UI_URL:      ${LANGFUSE_UI_URL:-http://localhost:3000}
+      LANGFUSE_UI_URL:      ${LANGFUSE_UI_URL:-http://localhost:3001}
       GITHUB_ORG:           ${GITHUB_ORG:-}
       GITHUB_TOKEN:         ${GITHUB_TOKEN:-}
     volumes:
-      # Mount workspace read-only so kanban files are visible
-      - ${WORKSPACE_ROOT:-../..}:/workspace:ro
+      # Mount workspace so kanban files are visible and writable (required for task mutations)
+      - ${WORKSPACE_ROOT:-../..}:/workspace
 
   # ─── Mission Control UI (Vue 3 + nginx) ──────────────────────────────────
   mission-control-ui:

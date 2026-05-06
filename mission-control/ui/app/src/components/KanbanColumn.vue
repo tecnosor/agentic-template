@@ -17,8 +17,6 @@ const emit = defineEmits<{
 const store = useKanbanStore()
 const config = computed(() => COLUMN_CONFIG[props.column])
 const label = computed(() => COLUMN_LABELS[props.column])
-const isDoing = computed(() => props.column === 'DOING')
-const isOverLimit = computed(() => isDoing.value && props.tasks.length > 2)
 const isDragOver = ref(false)
 let dragDepth = 0
 
@@ -66,7 +64,6 @@ function onDrop(event: DragEvent) {
       class="flex-1 rounded-lg border-t-4 border border-slate-800 bg-slate-900 flex flex-col transition-colors"
       :class="[
         config.topColor,
-        isOverLimit ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-slate-950' : '',
         isDragOver ? 'bg-slate-800 ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-950' : '',
       ]"
       @dragover="onDragOver"
@@ -80,15 +77,12 @@ function onDrop(event: DragEvent) {
           <span class="font-semibold text-sm text-slate-100 truncate">{{ label }}</span>
           <span
             class="text-xs px-2 py-0.5 rounded-full font-mono font-medium shrink-0"
-            :class="isOverLimit ? 'bg-red-900 text-red-300' : config.badge"
+            :class="config.badge"
           >
             {{ tasks.length }}
           </span>
         </div>
         <p class="text-xs text-slate-500 mt-0.5 leading-tight">{{ config.description }}</p>
-        <div v-if="isOverLimit" class="mt-1.5 text-xs text-red-400 font-medium">
-          ⛔ WIP limit exceeded ({{ tasks.length }}/2)
-        </div>
       </div>
 
       <!-- Task list -->

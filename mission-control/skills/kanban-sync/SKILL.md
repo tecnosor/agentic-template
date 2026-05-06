@@ -3,7 +3,7 @@ name: kanban-sync
 description: >-
   Manages kanban task creation, movement, and lifecycle across workspace repos.
   One file per task in kanban/tasks/{ID}.md with YAML frontmatter status field.
-  Enforces DOING limit (max 2), immutable Origin field, correct ID prefixes.
+  Supports unlimited parallel DOING tasks, immutable Origin field, correct ID prefixes.
   Use when creating tickets, updating task status, or checking workflow health.
   Keywords: kanban, backlog, task, ticket, FEAT, FIX, CHORE, SCOUT, sprint,
   move task, update status, tarea, tablero, pendiente, en progreso.
@@ -65,7 +65,7 @@ Implement the complete user onboarding flow with email verification.
 | `BACKLOG` | Discovered, not yet prioritized |
 | `TODO` | Prioritized for upcoming work |
 | `READY` | Estimated and ready to start |
-| `DOING` | Actively being worked on (**MAX 2**) |
+| `DOING` | Actively being worked on (unlimited parallel) |
 | `TESTING` | Implementation done, tests running |
 | `HUMAN_VALIDATION` | Awaiting stakeholder approval |
 | `DONE` | Completed and merged |
@@ -85,18 +85,6 @@ Implement the complete user onboarding flow with email verification.
 | `DONE-` | 🤖 Agent | Mapped from history by @history-mapper |
 
 **Origin is IMMUTABLE.** Never change `👤 Human` to `🤖 Agent` or vice versa.
-
----
-
-## DOING Limit — MAX 2 Tasks
-
-Before moving any task to `DOING`:
-
-```bash
-grep -rl "status: DOING" kanban/tasks/ 2>/dev/null | wc -l
-```
-
-If count is 2: **STOP. Finish or move a DOING task before starting a new one.**
 
 ---
 
@@ -176,8 +164,6 @@ grep -rl "^status: DOING" kanban/tasks/ 2>/dev/null
 ```
 
 Expected health indicators:
-- `DOING`: ≤ 2
-- `TESTING`: ≤ 3
 - No task stuck in `DOING` for > 5 days
 
 ---

@@ -3,7 +3,7 @@ import type { Request, Response } from 'express'
 import type { KanbanColumn, KanbanTaskDraft, Origin, Priority } from '../types/kanban.js'
 import { moveTask, addComment, createTask } from '../services/kanbanWriter.js'
 import { commitAndPush } from '../services/gitService.js'
-import { countTasksInColumn, readTaskById } from '../services/kanbanReader.js'
+import { readTaskById } from '../services/kanbanReader.js'
 
 const router = Router()
 
@@ -11,13 +11,6 @@ const TASK_ID_PATTERN = /^(FEAT|FIX|CHORE|SCOUT|DONE|BACKLOG|LANG)-[0-9]{3,}$/
 const VALID_PRIORITIES: Priority[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 const VALID_COLUMNS: KanbanColumn[] = ['BACKLOG', 'TODO', 'READY', 'DOING', 'TESTING', 'HUMAN_VALIDATION', 'DONE']
 const VALID_ORIGINS: Origin[] = ['👤 Human', '🤖 Agent']
-
-function assertDoingCapacity(targetColumn: KanbanColumn, currentColumn?: KanbanColumn): void {
-  if (targetColumn !== 'DOING' || currentColumn === 'DOING') return
-  if (countTasksInColumn('DOING') >= 2) {
-    throw new Error('DOING limit reached (max 2 tasks)')
-  }
-}
 
 // ── POST /api/tasks/move ─────────────────────────────────────────────────────
 interface MoveBody {
@@ -43,8 +36,6 @@ router.post('/tasks/move', async (req: Request<object, object, MoveBody>, res: R
       res.status(400).json({ error: 'DONE tasks are append-only and cannot be moved back' })
       return
     }
-    assertDoingCapacity(targetColumn, existing.status)
-
     const sourceFile = moveTask(repo, id, targetColumn)
     await commitAndPush(repo, `chore(kanban): move ${id} to ${targetColumn}`)
     res.json({ ok: true, sourceFile })
@@ -84,7 +75,6 @@ router.post('/tasks/create', async (req: Request<object, object, KanbanTaskDraft
   }
 
   try {
-    assertDoingCapacity(body.status)
     const sourceFile = createTask(body.repo, body)
     await commitAndPush(body.repo, `chore(kanban): create ${body.id}`)
     const task = readTaskById(body.repo, body.id)
@@ -93,10 +83,6 @@ router.post('/tasks/create', async (req: Request<object, object, KanbanTaskDraft
     const msg = err instanceof Error ? err.message : String(err)
     if (msg.includes('already exists')) {
       res.status(409).json({ error: msg })
-      return
-    }
-    if (msg.includes('DOING limit')) {
-      res.status(400).json({ error: msg })
       return
     }
     res.status(500).json({ error: msg })
