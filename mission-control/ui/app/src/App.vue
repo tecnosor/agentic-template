@@ -103,25 +103,27 @@ onUnmounted(() => {
           >NOT CONFIGURED</span>
         </div>
 
-        <!-- Connected: show iframe + open button -->
+        <!-- Connected: open-in-new-tab panel (Langfuse blocks iframe embedding via CSP frame-ancestors 'none') -->
         <template v-if="langfuseEnabled && langfuseUrl">
-          <div class="flex items-center gap-3 mb-4">
+          <div class="max-w-2xl bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-5">
+            <p class="text-slate-300 text-sm">
+              Langfuse is running. Open it in a new tab to see traces, sessions, and token usage.
+            </p>
             <a
               :href="langfuseUrl"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-2 px-4 py-2 text-sm rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition"
+              class="inline-flex items-center gap-2 px-5 py-2.5 text-sm rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition"
             >
               Open Langfuse ↗
             </a>
-            <span class="text-xs text-slate-500">{{ langfuseUrl }}</span>
+            <div class="border-t border-slate-800 pt-4 space-y-1 text-xs text-slate-400">
+              <p class="font-semibold text-slate-300">Default credentials (self-hosted)</p>
+              <p>Email: <code class="bg-slate-800 px-1 rounded text-indigo-300">admin@mission-control.local</code></p>
+              <p>Password: <code class="bg-slate-800 px-1 rounded text-indigo-300">Admin1234!</code></p>
+              <p class="text-slate-600 text-[10px] pt-1">Set LANGFUSE_ADMIN_EMAIL / LANGFUSE_ADMIN_PASSWORD in .env to override.</p>
+            </div>
           </div>
-          <iframe
-            :src="langfuseUrl"
-            class="w-full rounded-lg border border-slate-800 bg-slate-900"
-            style="height: calc(100vh - 200px);"
-            title="Langfuse Observability UI"
-          />
         </template>
 
         <!-- Not configured: show setup instructions -->
