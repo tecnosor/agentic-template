@@ -5,15 +5,51 @@ import KanbanBoard from './components/KanbanBoard.vue'
 import FilterBar from './components/FilterBar.vue'
 import MetricsDashboard from './components/MetricsDashboard.vue'
 import TaskCreateModal from './components/TaskCreateModal.vue'
+import AgentActivityFeed from './components/AgentActivityFeed.vue'
 
 const store = useKanbanStore()
-const activeTab = ref<'kanban' | 'metrics'>('kanban')
+const activeTab = ref<'kanban' | 'metrics' | 'traces' | 'inbox'>('kanban')
 const creatingTask = ref(false)
+const inboxPending = ref(0)
+
+async function loadInboxSummary() {
+  try {
+    const res = await fetch('/api/orchestrate/summary')
+    if (res.ok) {
+      const data = await res.json() as { pending: number }
+      inboxPending.value = data.pending
+    }
+  } catch {
+    // non-blocking
+  }
+}
+
+// Langfuse config fetched from the Mission Control server
+const langfuseUrl = ref<string | null>(null)
+const langfuseEnabled = ref(false)
+
+async function loadLangfuseConfig() {
+  try {
+    const res = await fetch('/api/langfuse/config')
+    if (res.ok) {
+      const data = await res.json() as { enabled: boolean; uiUrl: string | null }
+      langfuseEnabled.value = data.enabled
+      langfuseUrl.value = data.uiUrl
+    }
+  } catch {
+    // server may not be running yet — ignore
+  }
+}
 
 onMounted(() => {
   void store.loadRepos()
   void store.loadTasks()
   store.connectLive()
+  void loadLangfuseConfig()
+  void loadInboxSummary()
+  // Refresh inbox count every 30s
+  const inboxTimer = setInterval(() => { void loadInboxSummary() }, 30_000)
+  onUnmounted(() => clearInterval(inboxTimer))
 })
 
 onUnmounted(() => {
@@ -28,7 +64,7 @@ onUnmounted(() => {
       <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 class="text-lg font-bold text-white tracking-tight">🎯 Mission Control</h1>
-          <p class="text-xs text-slate-500">Enterprise App Template · Workspace Kanban</p>
+          <p class="text-xs text-slate-500">Enterprise App Template · Workspace Kanban &amp; Observability</p>
         </div>
         <!-- Tab bar -->
         <div class="flex gap-1 rounded-lg bg-slate-900 p-1 border border-slate-800">
@@ -42,6 +78,22 @@ onUnmounted(() => {
             :class="activeTab === 'metrics' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'"
             @click="activeTab = 'metrics'"
           >📊 Metrics</button>
+          <button
+            class="px-3 py-1.5 text-xs rounded transition font-medium"
+            :class="activeTab === 'traces' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'"
+            @click="activeTab = 'traces'"
+          >🔍 Traces</button>
+          <button
+            class="relative px-3 py-1.5 text-xs rounded transition font-medium"
+            :class="activeTab === 'inbox' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'"
+            @click="activeTab = 'inbox'; void loadInboxSummary()"
+          >
+            📥 Inbox
+            <span
+              v-if="inboxPending > 0"
+              class="absolute -top-1 -right-1 bg-amber-500 text-slate-950 text-[9px] font-bold rounded-full px-1 min-w-[16px] text-center"
+            >{{ inboxPending }}</span>
+          </button>
         </div>
         <FilterBar v-if="activeTab === 'kanban'" @create-task="creatingTask = true" />
       </div>
@@ -49,23 +101,134 @@ onUnmounted(() => {
 
     <!-- Kanban tab -->
     <template v-if="activeTab === 'kanban'">
-      <!-- Error banner -->
       <div v-if="store.error" class="bg-red-950 border-b border-red-800 px-6 py-2 text-sm text-red-300">
         ⚠️ {{ store.error }}
       </div>
-      <!-- Loading overlay -->
       <div v-if="store.loading" class="flex items-center justify-center py-20 text-slate-500 text-sm">
         Loading kanban files…
       </div>
-      <!-- Board -->
       <main v-else class="overflow-x-auto">
         <KanbanBoard />
       </main>
     </template>
 
-    <!-- Metrics tab -->
+    <!-- Metrics tab (in-session summary) -->
+    <template v-else-if="activeTab === 'metrics'">
+      <MetricsDashboard :langfuse-url="langfuseUrl" :langfuse-enabled="langfuseEnabled" />
+    </template>
+
+    <!-- Traces tab — Langfuse full UI or setup instructions -->
+    <template v-else-if="activeTab === 'traces'">
+      <div class="p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold text-white">🔍 Langfuse Traces</h2>
+          <span
+            v-if="langfuseEnabled"
+            class="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-900/60 text-emerald-400 border border-emerald-800/50"
+          >CONNECTED</span>
+          <span
+            v-else
+            class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-900/60 text-amber-400 border border-amber-800/50"
+          >NOT CONFIGURED</span>
+        </div>
+
+        <!-- Connected: open-in-new-tab panel (Langfuse blocks iframe embedding via CSP frame-ancestors 'none') -->
+        <template v-if="langfuseEnabled && langfuseUrl">
+          <div class="max-w-2xl bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-5">
+            <p class="text-slate-300 text-sm">
+              Langfuse is running. Open it in a new tab to see traces, sessions, and token usage.
+            </p>
+            <a
+              :href="langfuseUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 px-5 py-2.5 text-sm rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition"
+            >
+              Open Langfuse ↗
+            </a>
+            <div class="border-t border-slate-800 pt-4 space-y-1 text-xs text-slate-400">
+              <p class="font-semibold text-slate-300">Default credentials (self-hosted)</p>
+              <p>Email: <code class="bg-slate-800 px-1 rounded text-indigo-300">admin@mission-control.local</code></p>
+              <p>Password: <code class="bg-slate-800 px-1 rounded text-indigo-300">Admin1234!</code></p>
+              <p class="text-slate-600 text-[10px] pt-1">Set LANGFUSE_ADMIN_EMAIL / LANGFUSE_ADMIN_PASSWORD in .env to override.</p>
+            </div>
+          </div>
+        </template>
+
+        <!-- Not configured: show setup instructions -->
+        <template v-else>
+          <div class="max-w-2xl bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-4 text-sm">
+            <p class="text-slate-300">
+              Langfuse is not configured yet. All agent traces, sessions, token usage,
+              skill invocations, and more are tracked here once connected.
+            </p>
+
+            <div class="space-y-2">
+              <p class="font-semibold text-white">Option A — Langfuse Cloud (free, no infra)</p>
+              <ol class="list-decimal list-inside space-y-1 text-slate-400">
+                <li>Sign up at <a href="https://cloud.langfuse.com" target="_blank" class="text-indigo-400 hover:underline">cloud.langfuse.com</a></li>
+                <li>Create a project and copy the public/secret keys</li>
+                <li>Set <code class="bg-slate-800 px-1 rounded">LANGFUSE_PUBLIC_KEY</code>, <code class="bg-slate-800 px-1 rounded">LANGFUSE_SECRET_KEY</code>, and <code class="bg-slate-800 px-1 rounded">LANGFUSE_HOST=https://cloud.langfuse.com</code></li>
+                <li>Restart the Mission Control server</li>
+              </ol>
+            </div>
+
+            <div class="space-y-2">
+              <p class="font-semibold text-white">Option B — Self-hosted (docker compose)</p>
+              <ol class="list-decimal list-inside space-y-1 text-slate-400">
+                <li>
+                  <code class="bg-slate-800 px-1 rounded">cd mission-control && cp .env.example .env</code>
+                  — edit secrets
+                </li>
+                <li><code class="bg-slate-800 px-1 rounded">docker compose up -d</code></li>
+                <li>Langfuse UI at <a href="http://localhost:3000" target="_blank" class="text-indigo-400 hover:underline">http://localhost:3000</a></li>
+              </ol>
+            </div>
+
+            <p class="text-slate-500 text-xs">
+              Default credentials (self-hosted): <code class="bg-slate-800 px-1 rounded">admin@mission-control.local</code> / <code class="bg-slate-800 px-1 rounded">Admin1234!</code>
+            </p>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Agent Inbox tab -->
     <template v-else>
-      <MetricsDashboard />
+      <div class="p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold text-white">📥 Agent Inbox</h2>
+          <span
+            v-if="inboxPending > 0"
+            class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-900/60 text-amber-400 border border-amber-800/50"
+          >{{ inboxPending }} PENDING</span>
+          <span
+            v-else
+            class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-500 border border-slate-700"
+          >IDLE</span>
+        </div>
+        <p class="text-slate-400 text-sm max-w-2xl">
+          Jobs are created automatically when a task reaches <strong>READY</strong> status.
+          AI tools (Claude Code, OpenCode, GitHub Copilot) check <code class="bg-slate-800 px-1 rounded">agent-inbox/pending/</code>
+          at session start and execute them.
+        </p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-xl">
+          <div class="bg-slate-900 border border-amber-800/40 rounded-lg p-3 text-center">
+            <p class="text-2xl font-bold text-amber-400">{{ inboxPending }}</p>
+            <p class="text-xs text-slate-400 mt-1">Pending</p>
+          </div>
+        </div>
+        <div class="max-w-2xl space-y-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Manual trigger</p>
+          <p class="text-xs text-slate-400">
+            Move any task to <strong>READY</strong> via the kanban board to trigger auto-orchestration,
+            or call the API directly:
+          </p>
+          <pre class="bg-slate-900 border border-slate-800 rounded p-3 text-xs text-slate-300 overflow-x-auto">curl -s -X POST http://localhost:3099/api/orchestrate/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"taskId": "FEAT-001", "repo": "mission-control"}'</pre>
+        </div>
+      </div>
     </template>
 
     <TaskCreateModal
@@ -73,5 +236,8 @@ onUnmounted(() => {
       @close="creatingTask = false"
       @created="creatingTask = false"
     />
+
+    <!-- Agent activity toast feed (always visible) -->
+    <AgentActivityFeed />
   </div>
 </template>

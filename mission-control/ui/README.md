@@ -52,7 +52,7 @@ Open **http://localhost:5174** in your browser.
 - **Manual task creation** from the UI (`+ New Task`)
 - **Move tasks from the modal** with server-side WIP and DONE guards
 - **Comments** stored in `kanban/comments.json`
-- **GitHub issue sync** per task
+- **GitHub or GitLab issue sync** per task
 - **Filter by Repo** and **Filter by Origin**
 - **Live refresh** for task create/update events via SSE, with polling fallback
 - **Source of truth remains markdown files**, not a separate kanban database
@@ -76,8 +76,8 @@ Edit `server/src/config.ts` to match your workspace:
 // Repos to scan for kanban tasks
 export const REPOS = ['my-service', 'my-frontend', 'mission-control']
 
-// GitHub org for PR/issue links (optional)
-export const GITHUB_ORG = process.env.GITHUB_ORG ?? ''
+// Preferred issue tracker provider (optional)
+export const ISSUE_PROVIDER = process.env.ISSUE_PROVIDER ?? 'github'
 ```
 
 Or copy `server/.env.example` → `server/.env` and set env vars.
@@ -108,3 +108,4 @@ Schema: see `ui/kanban-schema.md`.
 - No authentication — this is an internal dev tool
 - Kanban data lives in markdown files; metrics live in SQLite
 - Task moves and manual task creation from UI write back to the markdown files
+- Issue links can target GitHub or GitLab, depending on `ISSUE_PROVIDER`

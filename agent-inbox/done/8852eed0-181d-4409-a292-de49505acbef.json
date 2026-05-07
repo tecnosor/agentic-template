@@ -1,0 +1,16 @@
+{
+  "taskId": "FIX-001",
+  "repo": "mission-control",
+  "action": "execute",
+  "parentId": null,
+  "subtaskIds": [],
+  "sessionId": "orch-88d1f07c-29e3-4b50-8d6a-10d0f82b76c6",
+  "context": {
+    "title": "correccion integracion metricas y langfuse",
+    "description": "por algun motivo estoy usando langfuse y mi agente de gh copilot pero no es capaz de mostrar metricas...",
+    "priority": "MEDIUM"
+  },
+  "id": "8852eed0-181d-4409-a292-de49505acbef",
+  "createdAt": "2026-05-06T17:39:32.699Z",
+  "status": "done"
+}

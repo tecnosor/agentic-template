@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'COUNT=$(ls agent-inbox/pending/*.json 2>/dev/null | wc -l | tr -d \" \"); if [ \"$COUNT\" -gt 0 ]; then echo \"\"; echo \"┌─ Agent Inbox ──────────────────────────────────────┐\"; echo \"│  ⚠  $COUNT pending job(s) in agent-inbox/pending/  │\"; echo \"│  Run /process-inbox to start working on them.      │\"; echo \"└────────────────────────────────────────────────────┘\"; fi'"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'COUNT=$(ls agent-inbox/pending/*.json 2>/dev/null | wc -l | tr -d \" \"); if [ \"$COUNT\" -gt 0 ]; then echo \"[agent-inbox] $COUNT pending job(s) detected. The orchestrator has queued work. Check agent-inbox/pending/ and process with the orchestrator agent.\"; fi'"
+          }
+        ]
+      }
+    ]
+  }
+}

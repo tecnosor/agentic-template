@@ -1,23 +1,19 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
+import { existsSync, unlinkSync } from 'fs'
 import type { KanbanColumn, KanbanTaskDraft, Origin, Priority } from '../types/kanban.js'
-import { moveTask, addComment, createTask } from '../services/kanbanWriter.js'
+import { moveTask, addComment, createTask, getTaskFilePath } from '../services/kanbanWriter.js'
 import { commitAndPush } from '../services/gitService.js'
-import { countTasksInColumn, readTaskById } from '../services/kanbanReader.js'
+import { readTaskById } from '../services/kanbanReader.js'
+import { handleReadyTask, handleNewComment } from '../services/orchestratorService.js'
 
 const router = Router()
 
 const TASK_ID_PATTERN = /^(FEAT|FIX|CHORE|SCOUT|DONE|BACKLOG|LANG)-[0-9]{3,}$/
+const REPO_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/
 const VALID_PRIORITIES: Priority[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 const VALID_COLUMNS: KanbanColumn[] = ['BACKLOG', 'TODO', 'READY', 'DOING', 'TESTING', 'HUMAN_VALIDATION', 'DONE']
 const VALID_ORIGINS: Origin[] = ['👤 Human', '🤖 Agent']
-
-function assertDoingCapacity(targetColumn: KanbanColumn, currentColumn?: KanbanColumn): void {
-  if (targetColumn !== 'DOING' || currentColumn === 'DOING') return
-  if (countTasksInColumn('DOING') >= 2) {
-    throw new Error('DOING limit reached (max 2 tasks)')
-  }
-}
 
 // ── POST /api/tasks/move ─────────────────────────────────────────────────────
 interface MoveBody {
@@ -32,6 +28,10 @@ router.post('/tasks/move', async (req: Request<object, object, MoveBody>, res: R
     res.status(400).json({ error: 'id, repo, and targetColumn are required' })
     return
   }
+  if (!REPO_NAME_PATTERN.test(repo)) {
+    res.status(400).json({ error: 'repo must be a valid directory name (letters, numbers, dashes, underscores)' })
+    return
+  }
 
   try {
     const existing = readTaskById(repo, id)
@@ -43,10 +43,16 @@ router.post('/tasks/move', async (req: Request<object, object, MoveBody>, res: R
       res.status(400).json({ error: 'DONE tasks are append-only and cannot be moved back' })
       return
     }
-    assertDoingCapacity(targetColumn, existing.status)
-
     const sourceFile = moveTask(repo, id, targetColumn)
     await commitAndPush(repo, `chore(kanban): move ${id} to ${targetColumn}`)
+
+    // Auto-orchestration: trigger planning when task is moved to READY via UI
+    if (targetColumn === 'READY') {
+      handleReadyTask(id, repo).catch((err: unknown) => {
+        console.warn('[mutations] orchestrator error:', err instanceof Error ? err.message : err)
+      })
+    }
+
     res.json({ ok: true, sourceFile })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -66,7 +72,7 @@ router.post('/tasks/create', async (req: Request<object, object, KanbanTaskDraft
     return
   }
   // Validate repo is a safe directory name (no path traversal)
-  if (!body.repo || !/^[a-zA-Z0-9_-]+$/.test(body.repo)) {
+  if (!body.repo || !REPO_NAME_PATTERN.test(body.repo)) {
     res.status(400).json({ error: 'repo must be a valid directory name (letters, numbers, dashes, underscores)' })
     return
   }
@@ -84,19 +90,22 @@ router.post('/tasks/create', async (req: Request<object, object, KanbanTaskDraft
   }
 
   try {
-    assertDoingCapacity(body.status)
     const sourceFile = createTask(body.repo, body)
-    await commitAndPush(body.repo, `chore(kanban): create ${body.id}`)
+    try {
+      await commitAndPush(body.repo, `chore(kanban): create ${body.id}`)
+    } catch (commitError) {
+      const taskFilePath = getTaskFilePath(body.repo, body.id)
+      if (existsSync(taskFilePath)) {
+        unlinkSync(taskFilePath)
+      }
+      throw commitError
+    }
     const task = readTaskById(body.repo, body.id)
     res.status(201).json({ ok: true, sourceFile, task })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     if (msg.includes('already exists')) {
       res.status(409).json({ error: msg })
-      return
-    }
-    if (msg.includes('DOING limit')) {
-      res.status(400).json({ error: msg })
       return
     }
     res.status(500).json({ error: msg })
@@ -118,6 +127,10 @@ router.post('/tasks/comment', async (req: Request<object, object, CommentBody>, 
     res.status(400).json({ error: 'id, repo, author, and text are required' })
     return
   }
+  if (!REPO_NAME_PATTERN.test(repo)) {
+    res.status(400).json({ error: 'repo must be a valid directory name (letters, numbers, dashes, underscores)' })
+    return
+  }
 
   const comment = {
     author,
@@ -129,6 +142,12 @@ router.post('/tasks/comment', async (req: Request<object, object, CommentBody>, 
   try {
     addComment(repo, id, comment)
     await commitAndPush(repo, `chore(kanban): add comment to ${id}`)
+
+    // Auto comment review: evaluate if action is needed
+    handleNewComment(id, repo, text, author).catch((err: unknown) => {
+      console.warn('[mutations] comment-review error:', err instanceof Error ? err.message : err)
+    })
+
     res.json({ ok: true, comment })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

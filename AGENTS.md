@@ -55,6 +55,7 @@ Default template workspaces:
 | `compliance-eu` | GDPR, DORA, PSD2, privacy, audit |
 | `git-flow` | Branches, commits, PRs, releases |
 | `github-cli` | GitHub interactions via `gh` CLI |
+| `gitlab-cli` | GitLab interactions via `glab` CLI |
 | `history-scan` | Mapping existing work to `done` task files in `kanban/tasks/` |
 | `kanban-sync` | Moving or creating kanban tasks |
 | `lang-enforcer` | Checking or enforcing English language standard |
@@ -97,6 +98,73 @@ English is the workspace default for **all** code, comments, docs, and kanban ta
 - User-facing i18n strings in files explicitly marked for translation (`locales/`, `i18n/`)
 
 Run `@lang-enforcer` to detect and fix violations.
+
+---
+
+## Metrics Instrumentation (Mandatory for All Agents)
+
+Every agent conversation **must** register a session with Mission Control for observability in Langfuse.
+This applies to all agents: GitHub Copilot, OpenCode, Claude Code, IBM Bob, and any other AI agent.
+
+> **Non-blocking rule**: if Mission Control (`http://localhost:3099`) is unreachable, skip silently. Never block real work.
+
+### Lifecycle
+
+| Step | When | Action |
+|------|------|--------|
+| Session start | First turn of any conversation | `POST /api/metrics/sessions` |
+| Skill invoked | Any skill activated in this session | `POST /api/metrics/events` (`skill_invoked`) |
+| Agent invoked | Any sub-agent called | `POST /api/metrics/events` (`agent_invoked`) |
+| Session end | Last turn or best effort | `PATCH /api/metrics/sessions/<id>` |
+
+### Token estimation (no real counts available)
+```
+tokens_input  = floor(user_message_chars  / 4)
+tokens_output = floor(agent_response_chars / 4)
+```
+
+### Step-by-step
+
+**1. Session start** — run once at the beginning of a conversation:
+```bash
+SESSION_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
+curl -s -X POST http://localhost:3099/api/metrics/sessions \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"id\": \"$SESSION_ID\",
+    \"started_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+    \"workspace\": \"template\",
+    \"model\": \"<model-name>\"
+  }" || true
+```
+Store `$SESSION_ID` for all subsequent events in this conversation.
+
+**2. Skill / agent event** — run after each skill or agent is invoked:
+```bash
+curl -s -X POST http://localhost:3099/api/metrics/events \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"session_id\": \"$SESSION_ID\",
+    \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+    \"event_type\": \"skill_invoked\",
+    \"skill_name\": \"<skill-name>\",
+    \"workspace\": \"template\",
+    \"model\": \"<model>\",
+    \"tokens_input\": <n>,
+    \"tokens_output\": <n>,
+    \"duration_ms\": <n>,
+    \"status\": \"success\"
+  }" || true
+```
+
+**3. Session end** — run at conversation end (best effort):
+```bash
+curl -s -X PATCH http://localhost:3099/api/metrics/sessions/$SESSION_ID \
+  -H "Content-Type: application/json" \
+  -d "{\"ended_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" || true
+```
+
+Full API reference: `mission-control/skills/metrics/SKILL.md`
 
 ---
 

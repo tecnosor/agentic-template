@@ -2,6 +2,11 @@
 import { onMounted, onUnmounted, computed } from 'vue'
 import { useMetricsStore } from '../stores/metricsStore'
 
+const props = defineProps<{
+  langfuseUrl?: string | null
+  langfuseEnabled?: boolean
+}>()
+
 const store = useMetricsStore()
 
 onMounted(() => {
@@ -40,6 +45,36 @@ const lastUpdatedAgo = computed(() => {
 
 <template>
   <div class="p-6 space-y-6">
+    <!-- Langfuse status banner -->
+    <div
+      v-if="props.langfuseEnabled && props.langfuseUrl"
+      class="flex items-center justify-between bg-indigo-950/60 border border-indigo-800/50 rounded-lg px-4 py-2.5 text-sm"
+    >
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+        <span class="text-indigo-300 font-medium">Langfuse Observability Active</span>
+        <span class="text-indigo-500 text-xs">— all sessions and traces are forwarded automatically</span>
+      </div>
+      <a
+        :href="props.langfuseUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-xs text-indigo-400 hover:text-indigo-300 transition underline"
+      >Open Langfuse ↗</a>
+    </div>
+    <div
+      v-else
+      class="flex items-center justify-between bg-amber-950/40 border border-amber-800/40 rounded-lg px-4 py-2.5 text-sm"
+    >
+      <div class="flex items-center gap-2">
+        <span class="text-amber-400">⚠</span>
+        <span class="text-amber-300 text-xs">
+          Langfuse not connected — metrics are in-memory only (lost on restart).
+          See the <strong>🔍 Traces</strong> tab for setup instructions.
+        </span>
+      </div>
+    </div>
+
     <!-- Header row -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">

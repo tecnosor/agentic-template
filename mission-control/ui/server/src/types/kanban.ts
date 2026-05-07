@@ -9,6 +9,7 @@ export type KanbanColumn =
 
 export type Priority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
 export type Origin = '👤 Human' | '🤖 Agent'
+export type IssueProvider = 'github' | 'gitlab'
 
 export interface KanbanComment {
   author: Origin
@@ -31,6 +32,9 @@ export interface KanbanTask {
   leadTime?: string
   completed?: string
   comments?: KanbanComment[]
+  issueProvider?: IssueProvider
+  issueNumber?: number
+  issueUrl?: string
   githubIssueNumber?: number
   githubIssueUrl?: string
 }

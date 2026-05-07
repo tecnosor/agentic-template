@@ -1,0 +1,217 @@
+# Mission Control — Full Stack docker-compose
+#
+# Starts:
+#   1. Langfuse (self-hosted v3) — AI observability at http://localhost:3000
+#   2. Mission Control API server — Kanban + Langfuse bridge at http://localhost:3099
+#   3. Mission Control UI — Vue 3 dashboard at http://localhost:3098
+#
+# Quick start (single command):
+#   cd mission-control
+#   cp .env.example .env   # only the first time
+#   docker compose up -d
+#
+# URLs:
+#   Mission Control UI:  http://localhost:3098
+#   Langfuse UI:         http://localhost:3000  (admin@mission-control.local / Admin1234!)
+#   Mission Control API: http://localhost:3099
+#
+# To use Langfuse Cloud instead of self-hosting, skip this compose entirely —
+# just set LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, and
+# LANGFUSE_HOST=https://cloud.langfuse.com in your shell or .env before starting
+# the Mission Control server.
+
+services:
+
+  # ─── Langfuse Web (UI + API) ─────────────────────────────────────────────
+  langfuse-web:
+    image: ghcr.io/langfuse/langfuse:3
+    restart: unless-stopped
+    depends_on:
+      db:         { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+      redis:      { condition: service_healthy }
+      minio:      { condition: service_healthy }
+    ports:
+      - "3001:3000"
+    env_file: .env
+    environment:
+      DATABASE_URL:                  postgresql://langfuse:${POSTGRES_PASSWORD:-langfuse_secret}@db:5432/langfuse
+      NEXTAUTH_URL:                  http://localhost:3001
+      NEXTAUTH_SECRET:               ${NEXTAUTH_SECRET:-change-me-in-production-32chars!!}
+      SALT:                          ${SALT:-change-me-in-production-salt!!}
+      ENCRYPTION_KEY:                ${ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      CLICKHOUSE_MIGRATION_URL:      clickhouse://clickhouse:9000
+      CLICKHOUSE_URL:                http://clickhouse:8123
+      CLICKHOUSE_USER:               clickhouse
+      CLICKHOUSE_PASSWORD:           ${CLICKHOUSE_PASSWORD:-clickhouse_secret}
+      REDIS_CONNECTION_STRING:       redis://redis:6379
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET:              langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION:              us-east-1
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT:            http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID:       minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY:   ${MINIO_PASSWORD:-minio_secret}
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE:    "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET:              langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION:              us-east-1
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT:            http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID:       minio
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY:   ${MINIO_PASSWORD:-minio_secret}
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE:    "true"
+      # Headless init — creates org/project on first boot
+      LANGFUSE_INIT_ORG_ID:          mission-control
+      LANGFUSE_INIT_ORG_NAME:        "Mission Control"
+      LANGFUSE_INIT_PROJECT_ID:      workspace
+      LANGFUSE_INIT_PROJECT_NAME:    "Workspace"
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-mc-local-00000000000000000000}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-mc-local-00000000000000000000}
+      LANGFUSE_INIT_USER_EMAIL:      ${LANGFUSE_ADMIN_EMAIL:-admin@mission-control.local}
+      LANGFUSE_INIT_USER_NAME:       Admin
+      LANGFUSE_INIT_USER_PASSWORD:   ${LANGFUSE_ADMIN_PASSWORD:-Admin1234!}
+      HOSTNAME:                      0.0.0.0
+
+  # ─── Langfuse Worker (async event processing) ────────────────────────────
+  langfuse-worker:
+    image: ghcr.io/langfuse/langfuse-worker:3
+    restart: unless-stopped
+    depends_on:
+      db:         { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+      redis:      { condition: service_healthy }
+      minio:      { condition: service_healthy }
+    env_file: .env
+    environment:
+      DATABASE_URL:             postgresql://langfuse:${POSTGRES_PASSWORD:-langfuse_secret}@db:5432/langfuse
+      SALT:                     ${SALT:-change-me-in-production-salt!!}
+      ENCRYPTION_KEY:           ${ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_URL:           http://clickhouse:8123
+      CLICKHOUSE_USER:          clickhouse
+      CLICKHOUSE_PASSWORD:      ${CLICKHOUSE_PASSWORD:-clickhouse_secret}
+      REDIS_CONNECTION_STRING:  redis://redis:6379
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET:              langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION:              us-east-1
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT:            http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID:       minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY:   ${MINIO_PASSWORD:-minio_secret}
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE:    "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET:              langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION:              us-east-1
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT:            http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID:       minio
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY:   ${MINIO_PASSWORD:-minio_secret}
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE:    "true"
+
+  # ─── Mission Control API (Kanban + Langfuse bridge) ──────────────────────
+  mission-control:
+    build:
+      context: ./ui/server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - langfuse-web
+    ports:
+      - "3099:3099"
+    env_file: .env
+    environment:
+      PORT:                 3099
+      WORKSPACE_ROOT:       /workspace
+      LANGFUSE_PUBLIC_KEY:  ${LANGFUSE_PUBLIC_KEY:-pk-mc-local-00000000000000000000}
+      LANGFUSE_SECRET_KEY:  ${LANGFUSE_SECRET_KEY:-sk-mc-local-00000000000000000000}
+      # Internal compose network URL (not the browser-facing one)
+      LANGFUSE_HOST:        http://langfuse-web:3000
+      # Browser-facing URL for the "Open Langfuse" button in the UI
+      LANGFUSE_UI_URL:      ${LANGFUSE_UI_URL:-http://localhost:3001}
+      GITHUB_ORG:           ${GITHUB_ORG:-}
+      GITHUB_TOKEN:         ${GITHUB_TOKEN:-}
+    volumes:
+      # Mount workspace so kanban files are visible and writable (required for task mutations)
+      - ${WORKSPACE_ROOT:-..}:/workspace
+
+  # ─── Mission Control UI (Vue 3 + nginx) ──────────────────────────────────
+  mission-control-ui:
+    build:
+      context: ./ui/app
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - mission-control
+    ports:
+      - "3098:3098"
+
+  # ─── Postgres (Langfuse OLTP) ────────────────────────────────────────────
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     langfuse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-langfuse_secret}
+      POSTGRES_DB:       langfuse
+      TZ:                UTC
+    volumes:
+      - langfuse_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── ClickHouse (Langfuse OLAP — traces, observations, scores) ───────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.3-alpine
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB:       default
+      CLICKHOUSE_USER:     clickhouse
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse_secret}
+      TZ:                  UTC
+    volumes:
+      - langfuse_clickhouse:/var/lib/clickhouse
+      - ./clickhouse-config.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://127.0.0.1:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # ─── Redis / Valkey (queue + cache) ──────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - langfuse_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── MinIO (blob / media storage) ────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    # Creates the bucket on first start
+    entrypoint: >
+      sh -c "
+        minio server /data --console-address ':9001' &
+        sleep 5 &&
+        mc alias set local http://localhost:9000 minio '${MINIO_PASSWORD:-minio_secret}' &&
+        mc mb --ignore-existing local/langfuse &&
+        wait
+      "
+    environment:
+      MINIO_ROOT_USER:     minio
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-minio_secret}
+    volumes:
+      - langfuse_minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  langfuse_postgres:
+  langfuse_clickhouse:
+  langfuse_redis:
+  langfuse_minio:
